@@ -1,0 +1,192 @@
+{
+  "pages": [
+    {
+      "path": "pages/home/home",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/menu/menu",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/product-detail/product-detail",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/cart/cart",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/orders/orders",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/profile/profile",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/legal/legal",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/search/search",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/checkout/checkout",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/pay/pay",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/pay-result/pay-result",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/order-detail/order-detail",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/review/review",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/address/address",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/coupons/coupons",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/favorites/favorites",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/settings/settings",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/profile-theme/profile-theme",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/wallet/wallet",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/plus/plus",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/member-orders/member-orders",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationStyle": "custom",
+    "backgroundColor": "#F5F5F7",
+    "backgroundTextStyle": "dark"
+  },
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^bottom-nav$": "@/components/bottom-nav/bottom-nav.vue",
+      "^product-spec-sheet$": "@/components/product-spec-sheet/product-spec-sheet.vue"
+    }
+  }
+}
