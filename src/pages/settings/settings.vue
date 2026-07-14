@@ -2,7 +2,7 @@
 <view :style="globalThemeStyle" class="page"><view class="safe-nav" :style="`--status-height:${statusHeight}px`"><view class="nav-row"><button hover-class="none" class="nav-back page-back" @tap="back"><image src="/static/assets/icons/back.svg" mode="aspectFit" /></button><text class="nav-title">设置</text><view class="nav-back"></view></view></view>
 <view class="settings-content">
   <view class="setting-group notification-group card"><text class="group-title">消息通知</text><button hover-class="none" class="setting-row"><text>订单状态通知</text><view :class="`switch ${notice ? 'on' : ''}`" data-field="notice" @tap="toggle"><view></view></view></button><button hover-class="none" class="setting-row"><text>优惠活动通知</text><view :class="`switch ${promotion ? 'on' : ''}`" data-field="promotion" @tap="toggle"><view></view></view></button><button hover-class="none" class="setting-row"><text>声音与振动</text><view :class="`switch ${vibration ? 'on' : ''}`" data-field="vibration" @tap="toggle"><view></view></view></button></view>
-  <view class="setting-group card"><text class="group-title">通用</text><button hover-class="none" class="setting-row" @tap="changeAvatar"><text>选择系统头像</text><view class="profile-entry-right"><image :src="user.avatar" mode="aspectFill" /><text>›</text></view></button><button hover-class="none" class="setting-row" @tap="editNickname"><text>选择系统昵称</text><text>{{user.nickname}} ›</text></button><button hover-class="none" class="setting-row" @tap="editTheme"><text>更改资料卡主题</text><view class="theme-entry-right"><view :style="`background:${profileTheme.color}`"></view><text>{{profileTheme.name}} ›</text></view></button><button hover-class="none" class="setting-row" @touchstart="startCacheHold" @touchend="cancelCacheHold" @touchcancel="cancelCacheHold" @tap="clearCache"><text>清除缓存</text><text>{{cacheSize}} ›</text></button></view>
+  <view class="setting-group card"><text class="group-title">通用</text><button hover-class="none" class="setting-row" @tap="changeAvatar"><text>更换头像</text><view class="profile-entry-right"><image :src="user.avatar" mode="aspectFill" /><text>›</text></view></button><button hover-class="none" class="setting-row" @tap="editTheme"><text>更改资料卡主题</text><view class="theme-entry-right"><view :style="`background:${profileTheme.color}`"></view><text>{{profileTheme.name}} ›</text></view></button><button hover-class="none" class="setting-row" @touchstart="startCacheHold" @touchend="cancelCacheHold" @touchcancel="cancelCacheHold" @tap="clearCache"><text>清除缓存</text><text>{{cacheSize}} ›</text></button></view>
   <view class="setting-group card"><text class="group-title">协议与隐私</text><button hover-class="none" class="setting-row" data-type="user" @tap="openAgreement"><text>用户服务协议</text><text>›</text></button><button hover-class="none" class="setting-row" data-type="privacy" @tap="openAgreement"><text>隐私政策</text><text>›</text></button></view>
   <button hover-class="none" v-if="user" class="logout" @tap="logout">退出登录</button><button hover-class="none" v-else class="primary-btn" @tap="login">登录账号</button>
 </view></view>
@@ -17,12 +17,64 @@ import auth from '../../utils/auth.js'
 import profileTheme from '../../utils/profile-theme.js'
 import account from '../../utils/account.js'
 import membership from '../../utils/membership.js'
+import cloud from '../../utils/cloud.js'
 const NOTIFICATION_SETTINGS_KEY = 'sk_notification_settings'
 const DEFAULT_NOTIFICATION_SETTINGS = {
   notice: true,
   promotion: true,
   vibration: true
 }
+
+function readBlobAsDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = reject
+    image.src = url
+  })
+}
+
+// H5 端直传 uniCloud 云存储可能因上传密钥失败而不可用。
+// 这里将用户选择的图片压缩成头像尺寸，再交给云函数写入用户资料表，保证头像资料真正后端化。
+async function filePathToAvatarDataUrl(filePath) {
+  if (!filePath) throw new Error('EMPTY_FILE')
+  if (/^data:image\//i.test(filePath)) return filePath
+  if (typeof fetch !== 'function') throw new Error('UNSUPPORTED_AVATAR_UPLOAD')
+
+  const response = await fetch(filePath)
+  const blob = await response.blob()
+  const objectUrl = URL.createObjectURL(blob)
+  try {
+    if (typeof document === 'undefined') {
+      const dataUrl = await readBlobAsDataUrl(blob)
+      if (dataUrl.length > 900 * 1024) throw new Error('AVATAR_TOO_LARGE')
+      return dataUrl
+    }
+
+    const image = await loadImage(objectUrl)
+    const size = Math.min(image.width, image.height)
+    const sourceX = Math.max(0, (image.width - size) / 2)
+    const sourceY = Math.max(0, (image.height - size) / 2)
+    const canvas = document.createElement('canvas')
+    canvas.width = 320
+    canvas.height = 320
+    const context = canvas.getContext('2d')
+    context.drawImage(image, sourceX, sourceY, size, size, 0, 0, 320, 320)
+    return canvas.toDataURL('image/jpeg', 0.82)
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
 const pageConfig = {
   data: { statusHeight: 20, user: null, profileTheme: profileTheme.getTheme('black'), notice: true, promotion: true, vibration: true, cacheSize: '2.4 MB' },
   onLoad() {
@@ -56,42 +108,54 @@ const pageConfig = {
     store.set(NOTIFICATION_SETTINGS_KEY, nextSettings)
     uni.showToast({ title: '设置已保存', icon: 'none' })
   },
-  // 头像仅允许选择随应用发布的固定安全素材，不再读取相册或接收用户上传图片。
-  // 这样可从源头消除头像场景中的用户生成图片内容，避免未经服务端内容安全检测的图片被使用。
-  changeAvatar() {
-    const avatars = [
-      { name: '经典微笑', path: '/static/assets/icons/smile.svg' },
-      { name: '简约人物', path: '/static/assets/icons/user.svg' },
-      { name: '食刻标识', path: '/static/assets/icons/food.svg' }
-    ]
-    uni.showActionSheet({
-      itemList: avatars.map(item => item.name),
-      success: res => {
-        const selected = avatars[res.tapIndex]
-        if (!selected) return
-        const user = { ...this.user, avatar: selected.path }
-        store.set('sk_user', user)
-        account.saveCurrentUser(user)
-        this.setData({ user })
-        uni.showToast({ title: '头像已更换', icon: 'success' })
+  // 头像改为用户自定义上传：选择本地图片后压缩为头像数据，再通过云函数写入用户资料表。
+  async changeAvatar() {
+    if (!this.user || !this.user.uid) {
+      uni.showToast({ title: '请先重新登录账号', icon: 'none' })
+      return
+    }
+    let loadingShown = false
+    try {
+      const chooseResult = await new Promise((resolve, reject) => {
+        uni.chooseImage({
+          count: 1,
+          sizeType: ['compressed'],
+          sourceType: ['album', 'camera'],
+          success: resolve,
+          fail: reject
+        })
+      })
+      const filePath = chooseResult.tempFilePaths && chooseResult.tempFilePaths[0]
+      if (!filePath) return
+      uni.showLoading({ title: '上传头像中' })
+      loadingShown = true
+      const avatar = await filePathToAvatarDataUrl(filePath)
+      const { result } = await cloud.callFunction({
+        name: 'user-profile',
+        data: {
+          action: 'updateAvatar',
+          uid: this.user.uid,
+          avatar
+        }
+      })
+      if (!result || result.code !== 0) {
+        uni.showToast({ title: (result && result.message) || '头像更新失败', icon: 'none' })
+        return
       }
-    })
-  },
-  // 昵称同样使用固定安全文案，避免产生未经过服务端内容安全检测的任意文本发布入口。
-  editNickname() {
-    const nicknames = ['食刻用户', '美食探索家', '干饭达人', '今日好胃口']
-    uni.showActionSheet({
-      itemList: nicknames,
-      success: res => {
-        const nickname = nicknames[res.tapIndex]
-        if (!nickname) return
-        const user = { ...this.user, nickname }
-        store.set('sk_user', user)
-        account.saveCurrentUser(user)
-        this.setData({ user })
-        uni.showToast({ title: '昵称已更新', icon: 'success' })
-      }
-    })
+      const user = { ...this.user, ...result.user }
+      store.set('sk_user', user)
+      account.saveCurrentUser(user)
+      this.setData({ user })
+      uni.showToast({ title: '头像已更换', icon: 'success' })
+    } catch (err) {
+      console.error('change avatar failed:', cloud.normalizeError(err), err)
+      const errorMessage = err && err.message === 'AVATAR_TOO_LARGE'
+        ? '图片过大，请换一张较小的头像'
+        : '头像上传失败'
+      uni.showToast({ title: errorMessage, icon: 'none' })
+    } finally {
+      if (loadingShown) uni.hideLoading()
+    }
   },
   editTheme() { uni.navigateTo({ url: '/pages/profile-theme/profile-theme' }) },
   openAgreement(e) {

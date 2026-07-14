@@ -1,70 +1,131 @@
-<template>
+﻿<template>
 <view :style="globalThemeStyle" class="page checkout-page">
   <view class="checkout-head" :style="`padding-top:${statusHeight}px`">
-    <view class="nav-row"><button hover-class="none" class="nav-back page-back" @tap="back"><image src="/static/assets/icons/back.svg" mode="aspectFit" /></button><text class="nav-title">确认订单</text><view class="nav-back"></view></view>
-  </view>
-  <scroll-view scroll-y :bounces="false" :show-scrollbar="false" class="checkout-scroll">
-  <view class="checkout-scroll-inner">
-    <view class="delivery-panel">
-      <button hover-class="none" class="address-panel" @tap="chooseAddress">
-        <view class="address-pin"><image src="/static/assets/icons/location.svg" mode="aspectFit" /></view>
-        <view v-if="address" class="address-main"><text class="address-detail">{{addressDisplay}}</text><text class="address-user">{{address.name}} {{address.gender}} · {{address.phone}}</text></view>
-        <view v-else class="address-main"><text class="address-detail">请选择收货地址</text><text class="address-user">完善地址后才能配送</text></view>
-        <text class="arrow">›</text>
-      </button>
-      <view class="delivery-divider"></view>
-      <view class="time-panel"><view><text class="time-label">送达时间</text><text class="time-safe">准时宝保障</text></view><button hover-class="none" @tap="showTime">{{deliveryTime}} ›</button></view>
+    <view class="nav-row">
+      <button hover-class="none" class="nav-back page-back" @tap="back"><image src="/static/assets/icons/back.svg" mode="aspectFit" /></button>
+      <text class="nav-title">确认订单</text>
+      <view class="nav-back"></view>
     </view>
-  <view class="checkout-content">
-    <view class="order-goods card">
-      <text class="shop-title">食刻·品质厨房</text>
-      <view v-for="(item, index) in cart" :key="item.key" class="goods-row">
-        <view class="goods-visual" :style="`background:${item.bg}`"><image :src="item.icon" mode="aspectFill" /></view>
-        <view class="goods-name"><text>{{item.name}}</text><text>{{item.spec}}</text></view>
-        <text class="goods-count">×{{item.count}}</text><text class="goods-price">¥{{item.price * item.count}}</text>
-      </view>
-      <view class="bill-row"><text>包装费</text><text>¥{{packingFee}}</text></view>
-      <view class="bill-row"><text>配送费 <text v-if="membershipTier === 'pro'" class="plus-badge">PRO</text></text><text :class="membershipTier === 'pro' ? 'plus-saving' : ''">{{deliveryFee === 0 ? 'PRO免配送费' : '¥' + deliveryFee}}</text></view>
-      <view class="bill-row"><text><text class="offer-badge">减</text> 店铺满减</text><text class="orange">-¥{{discount}}</text></view>
-      <view v-if="membershipActive && memberDiscount > 0" class="bill-row"><text><text class="offer-badge plus">{{membershipTier === 'pro' ? 'PRO' : 'PLUS'}}</text> 会员专享价 {{memberDiscountText}}</text><text class="orange">-¥{{memberDiscount}}</text></view>
-      <button hover-class="none" class="bill-row" @tap="chooseCoupon"><text><text class="offer-badge coupon">券</text> 优惠券</text><text class="orange">{{coupon ? '-¥' + couponDiscount : coupons.length + '张可用 ›'}}</text></button>
-      <view class="subtotal">共 {{cart.length}} 件商品　小计 <text>¥{{total}}</text></view>
-    </view>
-    <view class="option-card card">
-      <button hover-class="none" class="option-row" @tap="setRemark"><text>订单备注</text><text>{{remark || '口味、偏好等'}} ›</text></button>
-      <button hover-class="none" class="option-row" @tap="showTableware"><text>餐具数量</text><text>{{tableware || '请选择'}} ›</text></button>
-      <view class="option-row"><text>发票</text><text class="muted">暂不支持</text></view>
-    </view>
-    <view class="green-tip"><image src="/static/assets/icons/fruit.svg" mode="aspectFit" /><text>选择无需餐具，为环保减碳做贡献</text></view>
   </view>
-  </view>
-  </scroll-view>
-  <view class="submit-bar"><view><text>合计</text><text class="submit-price">¥{{total}}</text><text class="save-tip">已优惠 ¥{{discount + couponDiscount + memberDiscount}}</text></view><button hover-class="none" :disabled="submitting" @tap="submit">{{submitting ? '正在提交…' : '提交订单'}}</button></view>
 
-  <view v-if="timeVisible" class="mask" @tap="closeTime"><view class="sheet" @tap.stop="noop"><view class="handle"></view><text class="sheet-title">选择送达时间</text><button hover-class="none" data-time="立即配送（约30分钟）" @tap="pickTime"><text>立即配送</text><text>约 30 分钟送达</text></button><button hover-class="none" data-time="今天 19:00—19:15" @tap="pickTime"><text>今天 19:00—19:15</text><text>预约配送</text></button><button hover-class="none" data-time="今天 19:30—19:45" @tap="pickTime"><text>今天 19:30—19:45</text><text>预约配送</text></button></view></view>
-  <view v-if="tablewareVisible" class="mask" @tap="closeTableware"><view class="sheet tableware-sheet" @tap.stop="noop"><view class="handle"></view><text class="sheet-title">选择餐具数量</text><button v-for="(item, index) in tablewareOptions" :key="item" hover-class="none" :data-value="item" @tap="pickTableware"><text>{{item}}</text><text :class="tableware === item ? 'tableware-selected' : ''">{{tableware === item ? '已选择' : '›'}}</text></button></view></view>
-  <view v-if="showRemark" class="mask" @tap="closeRemark"><view class="sheet remark-sheet" @tap.stop="noop"><view class="handle"></view><text class="sheet-title">订单备注</text><textarea maxlength="80" placeholder="请输入口味、包装等要求" :value="remark" @input="remarkInput"></textarea><view class="quick-remarks"><button v-for="(item, index) in quickRemarks" :key="item" hover-class="none" :data-text="item" @tap="pickQuick">{{item}}</button></view><button hover-class="none" class="primary-btn" @tap="saveRemark">保存备注</button></view></view>
+  <scroll-view scroll-y :bounces="false" :show-scrollbar="false" class="checkout-scroll">
+    <view class="checkout-scroll-inner">
+      <view class="delivery-panel">
+        <button hover-class="none" class="address-panel" @tap="chooseAddress">
+          <view class="address-pin"><image src="/static/assets/icons/location.svg" mode="aspectFit" /></view>
+          <view v-if="address" class="address-main">
+            <text class="address-detail">{{ addressDisplay }}</text>
+            <text class="address-user">{{ address.name }} {{ address.gender }} · {{ address.phone }}</text>
+          </view>
+          <view v-else class="address-main">
+            <text class="address-detail">请选择收货地址</text>
+            <text class="address-user">完善地址后才能配送</text>
+          </view>
+          <text class="arrow">›</text>
+        </button>
+        <view class="delivery-divider"></view>
+        <view class="time-panel">
+          <view><text class="time-label">送达时间</text><text class="time-safe">准时宝保障</text></view>
+          <button hover-class="none" @tap="showTime">{{ deliveryTime }} ›</button>
+        </view>
+      </view>
+
+      <view class="checkout-content">
+        <view class="order-goods card">
+          <text class="shop-title">食刻·品质厨房</text>
+          <view v-for="item in cart" :key="item.key" class="goods-row">
+            <view class="goods-visual" :style="`background:${item.bg || '#f6e2c9'}`"><image :src="item.icon" mode="aspectFill" /></view>
+            <view class="goods-name"><text>{{ item.name }}</text><text>{{ item.spec }}</text></view>
+            <text class="goods-count">×{{ item.count }}</text><text class="goods-price">¥{{ item.price * item.count }}</text>
+          </view>
+          <view class="bill-row"><text>包装费</text><text>¥{{ packingFee }}</text></view>
+          <view class="bill-row"><text>配送费 <text v-if="membershipTier === 'pro'" class="plus-badge">PRO</text></text><text :class="membershipTier === 'pro' ? 'plus-saving' : ''">{{ deliveryFee === 0 ? 'PRO免配送费' : '¥' + deliveryFee }}</text></view>
+          <view class="bill-row"><text><text class="offer-badge">减</text> 店铺满减</text><text class="orange">-¥{{ discount }}</text></view>
+          <view v-if="membershipActive && memberDiscount > 0" class="bill-row"><text><text class="offer-badge plus">{{ membershipTier === 'pro' ? 'PRO' : 'PLUS' }}</text> 会员专享价 {{ memberDiscountText }}</text><text class="orange">-¥{{ memberDiscount }}</text></view>
+          <button hover-class="none" class="bill-row" @tap="chooseCoupon"><text><text class="offer-badge coupon">券</text> 优惠券</text><text class="orange">{{ coupon ? '-¥' + couponDiscount : coupons.length + '张可用 ›' }}</text></button>
+          <view class="subtotal">共 {{ cart.length }} 件商品　小计 <text>¥{{ total }}</text></view>
+        </view>
+
+        <view class="option-card card">
+          <button hover-class="none" class="option-row" @tap="setRemark"><text>订单备注</text><text>{{ remark || '口味、偏好等' }} ›</text></button>
+          <button hover-class="none" class="option-row" @tap="showTableware"><text>餐具数量</text><text>{{ tableware || '请选择' }} ›</text></button>
+          <view class="option-row"><text>发票</text><text class="muted">暂不支持</text></view>
+        </view>
+        <view class="green-tip"><image src="/static/assets/icons/fruit.svg" mode="aspectFit" /><text>选择无需餐具，为环保减碳做贡献</text></view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view class="submit-bar">
+    <view><text>合计</text><text class="submit-price">¥{{ total }}</text><text class="save-tip">已优惠 ¥{{ discount + couponDiscount + memberDiscount }}</text></view>
+    <button hover-class="none" :disabled="submitting" @tap="submit">{{ submitting ? '正在提交…' : '提交订单' }}</button>
+  </view>
+
+  <view v-if="timeVisible" class="mask" @tap="closeTime">
+    <view class="sheet" @tap.stop="noop">
+      <view class="handle"></view><text class="sheet-title">选择送达时间</text>
+      <button hover-class="none" data-time="立即配送（约30分钟）" @tap="pickTime"><text>立即配送</text><text>约 30 分钟送达</text></button>
+      <button hover-class="none" data-time="今天 19:00-19:15" @tap="pickTime"><text>今天 19:00-19:15</text><text>预约配送</text></button>
+      <button hover-class="none" data-time="今天 19:30-19:45" @tap="pickTime"><text>今天 19:30-19:45</text><text>预约配送</text></button>
+    </view>
+  </view>
+  <view v-if="tablewareVisible" class="mask" @tap="closeTableware">
+    <view class="sheet tableware-sheet" @tap.stop="noop">
+      <view class="handle"></view><text class="sheet-title">选择餐具数量</text>
+      <button v-for="item in tablewareOptions" :key="item" hover-class="none" :data-value="item" @tap="pickTableware"><text>{{ item }}</text><text :class="tableware === item ? 'tableware-selected' : ''">{{ tableware === item ? '已选择' : '›' }}</text></button>
+    </view>
+  </view>
+  <view v-if="showRemark" class="mask" @tap="closeRemark">
+    <view class="sheet remark-sheet" @tap.stop="noop">
+      <view class="handle"></view><text class="sheet-title">订单备注</text>
+      <textarea maxlength="80" placeholder="请输入口味、包装等要求" :value="remark" @input="remarkInput"></textarea>
+      <view class="quick-remarks"><button v-for="item in quickRemarks" :key="item" hover-class="none" :data-text="item" @tap="pickQuick">{{ item }}</button></view>
+      <button hover-class="none" class="primary-btn" @tap="saveRemark">保存备注</button>
+    </view>
+  </view>
 </view>
 </template>
-
 <script>
 import adaptPage from '@/utils/page-adapter.js'
-// 确认订单页：汇总商品、地址、配送、优惠、餐具和备注，并生成待支付订单草稿。
+// 纭璁㈠崟椤碉細姹囨€诲晢鍝併€佸湴鍧€銆侀厤閫併€佷紭鎯犮€侀鍏峰拰澶囨敞锛屽苟鐢熸垚寰呮敮浠樿鍗曡崏绋裤€?
 
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
 import membership from '../../utils/membership.js'
+import orderBackend from '../../utils/order-backend.js'
 const pageConfig = {
   data: {
-    statusHeight: 20, cart: [], address: null, addressDisplay: '', coupon: null, coupons: [],
-    goodsTotal: 0, deliveryFee: 3, packingFee: 2, discount: 8, couponDiscount: 0, memberDiscount: 0, membershipActive: false, membershipTier: '', memberDiscountText: '', total: 0,
-    remark: '', quickRemarks: ['不要辣', '少放盐', '多点米饭', '不要香菜', '餐品分装'], tableware: '', tablewareOptions: ['无需餐具', '1份餐具', '2份餐具', '3份餐具'], deliveryTime: '立即配送（约30分钟）', timeVisible: false, showRemark: false, tablewareVisible: false, submitting: false
+    statusHeight: 20,
+    cart: [],
+    address: null,
+    addressDisplay: '',
+    coupon: null,
+    coupons: [],
+    goodsTotal: 0,
+    deliveryFee: 3,
+    packingFee: 2,
+    discount: 8,
+    couponDiscount: 0,
+    memberDiscount: 0,
+    membershipActive: false,
+    membershipTier: '',
+    memberDiscountText: '',
+    total: 0,
+    remark: '',
+    quickRemarks: ['不要辣', '少放盐', '多点米饭', '不要香菜', '餐品分装'],
+    tableware: '',
+    tablewareOptions: ['无需餐具', '1份餐具', '2份餐具', '3份餐具'],
+    deliveryTime: '立即配送（约30分钟）',
+    timeVisible: false,
+    showRemark: false,
+    tablewareVisible: false,
+    submitting: false
   },
   onLoad() {
     if (!auth.guardPage('/pages/checkout/checkout')) return
     this.setData({ statusHeight: getApp().globalData.statusBarHeight })
   },
-  // 加载购物车、用户选定地址、优惠券和会员权益。
+  // 鍔犺浇璐墿杞︺€佺敤鎴烽€夊畾鍦板潃銆佷紭鎯犲埜鍜屼細鍛樻潈鐩娿€?
   onShow() {
     const cart = store.getCart().filter(item => item.checked)
     const addresses = store.getAddresses()
@@ -89,7 +150,7 @@ const pageConfig = {
     })
     this.calculate()
   },
-  // 统一计算商品、包装、配送、满减、优惠券、会员折扣和实付金额。
+  // 缁熶竴璁＄畻鍟嗗搧銆佸寘瑁呫€侀厤閫併€佹弧鍑忋€佷紭鎯犲埜銆佷細鍛樻姌鎵ｅ拰瀹炰粯閲戦銆?
   calculate() {
     const goodsTotal = Number(this.cart.reduce((sum, item) => sum + item.price * item.count, 0).toFixed(2))
     const couponDiscount = this.coupon && goodsTotal >= this.coupon.threshold ? this.coupon.amount : 0
@@ -114,10 +175,9 @@ const pageConfig = {
   showTableware() { this.setData({ tablewareVisible: true }) },
   closeTableware() { this.setData({ tablewareVisible: false }) },
   pickTableware(e) { this.setData({ tableware: e.currentTarget.dataset.value, tablewareVisible: false }) },
-  // 餐具未选择时先打开选择面板；校验通过后保存订单草稿。
-  submit() {
+  async submit() {
     if (this.submitting) return
-    if (!this.address) return uni.showToast({ title: '请选择收货地址', icon: 'none' })
+    if (!this.address) return uni.showToast({ title: '璇烽€夋嫨鏀惰揣鍦板潃', icon: 'none' })
     if (!this.tableware) {
       this.setData({ tablewareVisible: true })
       return
@@ -131,17 +191,25 @@ const pageConfig = {
     }
     store.set('sk_order_draft', draft)
     this.setData({ submitting: true })
-    uni.redirectTo({
-      url: `/pages/pay/pay?amount=${this.total}`,
-      success: () => {
-        store.set('sk_cart', store.getCart().filter(item => !item.checked))
-      },
-      fail: err => {
-        this.setData({ submitting: false })
-        console.error('进入收银台失败', err)
-        uni.showToast({ title: '收银台加载失败，请重试', icon: 'none' })
-      }
-    })
+    try {
+      const order = await orderBackend.createOrder(draft)
+      const orderedKeys = this.cart.map(item => item.key)
+      const remainingCart = store.getCart().filter(item => !orderedKeys.includes(item.key))
+      store.set('sk_cart', remainingCart)
+      await orderBackend.clearCart(orderedKeys)
+      uni.redirectTo({
+        url: `/pages/pay/pay?amount=${this.total}&existing=${order.id}`,
+        fail: err => {
+          this.setData({ submitting: false })
+          console.error('enter cashier failed', err)
+          uni.showToast({ title: '收银台加载失败，请重试', icon: 'none' })
+        }
+      })
+    } catch (err) {
+      this.setData({ submitting: false })
+      console.error('create order failed', err)
+      uni.showToast({ title: '提交订单失败，请稍后重试', icon: 'none' })
+    }
   },
   noop() {}
 }
@@ -284,7 +352,7 @@ export default adaptPage(pageConfig)
   padding-top:16rpx;
 }
 
-/* 订单选项是白色卡片中的无底色行，去除 H5 按钮默认灰底和边框。 */
+/* 璁㈠崟閫夐」鏄櫧鑹插崱鐗囦腑鐨勬棤搴曡壊琛岋紝鍘婚櫎 H5 鎸夐挳榛樿鐏板簳鍜岃竟妗嗐€?*/
 .time-panel button,
 .checkout-page .bill-row,
 .checkout-page .option-row,
@@ -295,7 +363,7 @@ export default adaptPage(pageConfig)
   box-shadow:none!important;
 }
 
-/* 恢复确认订单的横向信息布局，避免文本被按钮默认规则挤成竖排。 */
+/* 鎭㈠纭璁㈠崟鐨勬í鍚戜俊鎭竷灞€锛岄伩鍏嶆枃鏈鎸夐挳榛樿瑙勫垯鎸ゆ垚绔栨帓銆?*/
 .checkout-page .order-goods{display:block!important;width:100%;box-sizing:border-box;overflow:hidden}
 .checkout-page .shop-title{display:block!important;width:100%;white-space:nowrap;word-break:keep-all;writing-mode:horizontal-tb!important}
 .checkout-page .goods-row{display:flex!important;flex-wrap:nowrap!important;width:100%;box-sizing:border-box}
@@ -311,7 +379,7 @@ export default adaptPage(pageConfig)
 .checkout-page .bill-row .offer-badge.coupon + text{font-size:25rpx;font-weight:500}
 .checkout-page .bill-row>text:first-child{font-size:25rpx;font-weight:500}
 
-/* 费用和选项行统一基线：左侧标题、右侧说明都顶端对齐，避免“备注/餐具”看起来比发票高低不一。 */
+/* 璐圭敤鍜岄€夐」琛岀粺涓€鍩虹嚎锛氬乏渚ф爣棰樸€佸彸渚ц鏄庨兘椤剁瀵归綈锛岄伩鍏嶁€滃娉?椁愬叿鈥濈湅璧锋潵姣斿彂绁ㄩ珮浣庝笉涓€銆?*/
 .checkout-page .bill-row,
 .checkout-page .option-row{
   min-height:80rpx!important;
@@ -378,7 +446,7 @@ export default adaptPage(pageConfig)
   line-height:1!important;
 }
 
-/* 餐具数量弹层中的每一项是纯白列表行，去掉 uni-app H5 button 默认浅灰底。 */
+/* 椁愬叿鏁伴噺寮瑰眰涓殑姣忎竴椤规槸绾櫧鍒楄〃琛岋紝鍘绘帀 uni-app H5 button 榛樿娴呯伆搴曘€?*/
 .checkout-page .tableware-sheet>button,
 .checkout-page .tableware-sheet uni-button,
 .checkout-page .sheet.tableware-sheet>button{
@@ -398,3 +466,4 @@ export default adaptPage(pageConfig)
 }
 
 </style>
+

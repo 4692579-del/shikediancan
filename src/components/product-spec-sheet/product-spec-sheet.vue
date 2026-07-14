@@ -31,6 +31,7 @@ import adaptComponent from '@/utils/component-adapter.js'
 
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
+import orderBackend from '../../utils/order-backend.js'
 const componentConfig = {
   properties: {
     show: { type: Boolean, value: false },
@@ -103,6 +104,7 @@ const componentConfig = {
         this.count,
         `${spec.name}${spec.extra ? ` +¥${spec.extra}` : ''}`
       )
+      orderBackend.saveCart(store.getCart()).catch(err => console.error('sync cart failed', err))
       this.triggerEvent('added', { count: store.cartSummary().count })
       this.close()
       uni.showToast({ title: '已加入购物车', icon: 'success' })

@@ -1,0 +1,42 @@
+{
+  "bsonType": "object",
+  "required": ["userId", "items", "status", "total"],
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": {
+      "description": "订单ID"
+    },
+    "userId": {
+      "bsonType": "string",
+      "description": "用户ID"
+    },
+    "items": {
+      "bsonType": "array",
+      "description": "订单商品快照"
+    },
+    "status": {
+      "bsonType": "string",
+      "description": "订单状态：unpaid/making/delivery/done/cancelled"
+    },
+    "total": {
+      "bsonType": "double",
+      "description": "实付金额"
+    },
+    "createdAtTimestamp": {
+      "bsonType": "long",
+      "description": "下单时间戳"
+    },
+    "paymentDeadline": {
+      "description": "支付截止时间戳"
+    },
+    "deletedAt": {
+      "bsonType": "long",
+      "description": "软删除时间"
+    }
+  }
+}

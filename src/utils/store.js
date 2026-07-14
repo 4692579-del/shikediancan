@@ -22,6 +22,10 @@ function seed() {
   }
   if (!uni.getStorageSync('sk_cart')) uni.setStorageSync('sk_cart', [])
   if (!uni.getStorageSync('sk_orders')) uni.setStorageSync('sk_orders', [])
+  if (!uni.getStorageSync('sk_orders_backend_v1_cleared')) {
+    uni.setStorageSync('sk_orders', [])
+    uni.setStorageSync('sk_orders_backend_v1_cleared', true)
+  }
   if (!uni.getStorageSync('sk_favorites')) uni.setStorageSync('sk_favorites', [])
 }
 

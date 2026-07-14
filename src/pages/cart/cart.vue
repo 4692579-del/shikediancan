@@ -1,4 +1,4 @@
-<template>
+﻿<template>
 <view :style="globalThemeStyle" class="page cart-page">
   <view class="safe-nav" :style="`--status-height:${statusHeight}px`">
     <view class="nav-row">
@@ -31,7 +31,7 @@
               <view v-if="!managing" :class="`stepper ${item.count === 1 ? 'single' : ''}`">
                 <button v-if="item.count > 1" hover-class="none" class="minus" :data-key="item.key" data-delta="-1" @tap="changeCount">−</button>
                 <input class="count-input" type="number" :value="item.count" :data-key="item.key" @blur="setCount" />
-                <button hover-class="none" class="plus" :data-key="item.key" data-delta="1" @tap="changeCount">＋</button>
+                <button hover-class="none" class="plus" :data-key="item.key" data-delta="1" @tap="changeCount">+</button>
               </view>
             </view>
           </view>
@@ -52,7 +52,7 @@
     <button hover-class="none" :class="`check ${allChecked ? 'checked' : ''}`" @tap="toggleAll"><image src="/static/assets/icons/check.svg" mode="aspectFit" /></button>
     <text class="all-label">全选</text>
     <view v-if="!managing" class="total"><text>合计 </text><text class="total-price">¥{{total}}</text><text class="total-tip">已优惠 ¥8</text></view>
-    <button v-if="!managing" hover-class="none" class="settle-btn" @tap="checkout">去结算 ({{count}})</button>
+    <button v-if="!managing" hover-class="none" class="settle-btn" @tap="checkout">去结算({{count}})</button>
     <button v-else hover-class="none" class="settle-btn delete-btn" @tap="deleteSelected">删除 ({{count}})</button>
   </view>
 </view>
@@ -60,10 +60,12 @@
 
 <script>
 import adaptPage from '@/utils/page-adapter.js'
-// 购物车页：负责商品勾选、数量修改、左滑操作、管理模式、金额汇总与结算校验。
+// 璐墿杞﹂〉锛氳礋璐ｅ晢鍝佸嬀閫夈€佹暟閲忎慨鏀广€佸乏婊戞搷浣溿€佺鐞嗘ā寮忋€侀噾棰濇眹鎬讳笌缁撶畻鏍￠獙銆?
 
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
+import orderBackend from '../../utils/order-backend.js'
+import favoriteBackend from '../../utils/favorite-backend.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -86,8 +88,16 @@ const pageConfig = {
       manageRight: Math.max(96, windowInfo.windowWidth - menu.left + 12)
     })
   },
-  onShow() { this.refresh() },
-  // 从缓存重新读取购物车并计算全选、件数和合计金额。
+  async onShow() {
+    try {
+      await orderBackend.fetchCart()
+      await favoriteBackend.fetchFavorites()
+    } catch (err) {
+      console.error('fetch cart failed', err)
+    }
+    this.refresh()
+  },
+  // 浠庣紦瀛橀噸鏂拌鍙栬喘鐗╄溅骞惰绠楀叏閫夈€佷欢鏁板拰鍚堣閲戦銆?
   refresh() {
     const cart = store.getCart()
     const summary = store.cartSummary(cart)
@@ -100,11 +110,12 @@ const pageConfig = {
     })
   },
   back() { uni.navigateBack({ fail: () => uni.redirectTo({ url: '/pages/menu/menu' }) }) },
-  // 管理模式下底部主按钮由“去结算”切换为“删除”。
+  // 绠＄悊妯″紡涓嬪簳閮ㄤ富鎸夐挳鐢扁€滃幓缁撶畻鈥濆垏鎹负鈥滃垹闄も€濄€?
   toggleManage() {
     const managing = !this.managing
     const cart = this.cart.map(item => ({ ...item, checked: !managing }))
     store.set('sk_cart', cart)
+    orderBackend.saveCart(cart).catch(err => console.error('sync cart failed', err))
     this.setData({ managing, swipedCartKey: '' })
     this.refresh()
   },
@@ -114,7 +125,7 @@ const pageConfig = {
     this.cartTouchX = touch ? touch.clientX : 0
     this.cartTouchY = touch ? touch.clientY : 0
   },
-  // 仅横向滑动超过阈值时露出收藏和删除圆形按钮。
+  // 浠呮í鍚戞粦鍔ㄨ秴杩囬槇鍊兼椂闇插嚭鏀惰棌鍜屽垹闄ゅ渾褰㈡寜閽€?
   cartSwipeEnd(e) {
     if (this.managing) return
     const touch = e.changedTouches[0]
@@ -125,27 +136,33 @@ const pageConfig = {
     const key = e.currentTarget.dataset.key
     this.setData({ swipedCartKey: dx < 0 ? key : '' })
   },
-  favoriteCartItem(e) {
+  async favoriteCartItem(e) {
     const key = e.currentTarget.dataset.key
     const item = this.cart.find(row => row.key === key)
     if (!item) return
-    const favorites = store.get('sk_favorites', [])
-    if (!favorites.includes(item.id)) {
-      store.set('sk_favorites', favorites.concat(item.id))
-      uni.showToast({ title: '已移入收藏夹', icon: 'success' })
-    } else {
-      uni.showToast({ title: '该商品已在收藏夹', icon: 'none' })
+    try {
+      const ids = favoriteBackend.getCachedIds()
+      if (ids.includes(Number(item.id))) {
+        uni.showToast({ title: '该商品已在收藏夹', icon: 'none' })
+      } else {
+        await favoriteBackend.addFavorite(item)
+        uni.showToast({ title: '已移入收藏夹', icon: 'success' })
+      }
+    } catch (err) {
+      console.error('favorite cart item failed', err)
+      uni.showToast({ title: '收藏失败，请重试', icon: 'none' })
     }
     this.setData({ swipedCartKey: '' })
   },
   deleteCartItem(e) {
     const key = e.currentTarget.dataset.key
     store.updateCart(key, 0)
+    orderBackend.saveCart(store.getCart()).catch(err => console.error('sync cart failed', err))
     this.setData({ swipedCartKey: '' })
     this.refresh()
     uni.showToast({ title: '商品已删除', icon: 'none' })
   },
-  // 数量为 1 时禁止继续减少，且不弹出多余提示。
+  // 鏁伴噺涓?1 鏃剁姝㈢户缁噺灏戯紝涓斾笉寮瑰嚭澶氫綑鎻愮ず銆?
   changeCount(e) {
     const { key, delta } = e.currentTarget.dataset
     const item = this.cart.find(row => row.key === key)
@@ -153,9 +170,10 @@ const pageConfig = {
     const count = item.count + Number(delta)
     if (count < 1) return
     store.updateCart(key, count)
+    orderBackend.saveCart(store.getCart()).catch(err => console.error('sync cart failed', err))
     this.refresh()
   },
-  // 快捷输入数量时校验正整数并同步缓存。
+  // 蹇嵎杈撳叆鏁伴噺鏃舵牎楠屾鏁存暟骞跺悓姝ョ紦瀛樸€?
   setCount(e) {
     const key = e.currentTarget.dataset.key
     const value = String(e.detail.value || '').trim()
@@ -167,24 +185,28 @@ const pageConfig = {
     if (!Number.isFinite(count) || count < 1) {
       uni.showToast({ title: '商品数量不能小于1', icon: 'none' })
       store.updateCart(key, 1)
+      orderBackend.saveCart(store.getCart()).catch(err => console.error('sync cart failed', err))
       this.refresh()
       return
     }
     store.updateCart(key, count)
+    orderBackend.saveCart(store.getCart()).catch(err => console.error('sync cart failed', err))
     this.refresh()
   },
   toggleItem(e) {
     const key = e.currentTarget.dataset.key
     const cart = this.cart.map(item => item.key === key ? { ...item, checked: !item.checked } : item)
     store.set('sk_cart', cart)
+    orderBackend.saveCart(cart).catch(err => console.error('sync cart failed', err))
     this.refresh()
   },
   toggleAll() {
     const checked = !this.allChecked
     store.set('sk_cart', this.cart.map(item => ({ ...item, checked })))
+    orderBackend.saveCart(store.getCart()).catch(err => console.error('sync cart failed', err))
     this.refresh()
   },
-  // 管理模式批量删除前要求至少选中一个商品。
+  // 绠＄悊妯″紡鎵归噺鍒犻櫎鍓嶈姹傝嚦灏戦€変腑涓€涓晢鍝併€?
   deleteSelected() {
     if (!this.count) {
       uni.showToast({ title: '请选择要删除的商品', icon: 'none' })
@@ -200,12 +222,13 @@ const pageConfig = {
           .filter(item => !item.checked)
           .map(item => ({ ...item, checked: false }))
         store.set('sk_cart', remaining)
+        orderBackend.saveCart(remaining).catch(err => console.error('sync cart failed', err))
         this.setData({ managing: remaining.length > 0 })
         this.refresh()
       }
     })
   },
-  // 结算前依次校验选中商品和收货地址。
+  // 缁撶畻鍓嶄緷娆℃牎楠岄€変腑鍟嗗搧鍜屾敹璐у湴鍧€銆?
   checkout() {
     if (!this.count) return uni.showToast({ title: '请选择商品', icon: 'none' })
     if (!store.getDefaultAddress()) {
@@ -463,7 +486,7 @@ button.check,
   height:0;
 }
 
-/* 左滑操作圆钮：收紧图标与文字距离，避免上下分散。 */
+/* 宸︽粦鎿嶄綔鍦嗛挳锛氭敹绱у浘鏍囦笌鏂囧瓧璺濈锛岄伩鍏嶄笂涓嬪垎鏁ｃ€?*/
 .cart-page .cart-item-actions button{
   gap:0!important;
   line-height:1!important;
@@ -481,3 +504,4 @@ button.check,
 }
 
 </style>
+

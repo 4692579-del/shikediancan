@@ -1,4 +1,4 @@
-<template>
+﻿<template>
 <view :style="globalThemeStyle" v-if="food" class="page product-page">
   <view class="product-nav" :style="`padding-top:${statusHeight}px`">
     <view class="nav-row">
@@ -20,10 +20,10 @@
         <text class="product-desc">{{food.desc}}</text>
         <view class="product-meta">
           <view><image src="/static/assets/icons/star.svg" mode="aspectFit" /><text>{{food.rating}} 分</text></view>
-          <text>月售 {{food.sales}}</text>
+          <text>鏈堝敭 {{food.sales}}</text>
           <text>约30分钟送达</text>
         </view>
-        <view class="product-price"><text>¥</text>{{displayPrice}}<text class="old-price">¥{{food.oldPrice}}</text></view>
+        <view class="product-price"><text>楼</text>{{displayPrice}}<text class="old-price">楼{{food.oldPrice}}</text></view>
       </view>
 
       <view class="detail-card card">
@@ -63,12 +63,12 @@
       <view class="sheet-handle"></view>
       <view class="sheet-product">
         <view class="sheet-visual" :style="`background:${food.bg}`"><image :src="food.icon" mode="aspectFill" /></view>
-        <view class="sheet-copy"><text>{{food.name}}</text><view><text>¥</text>{{displayPrice}}</view></view>
+        <view class="sheet-copy"><text>{{food.name}}</text><view><text>楼</text>{{displayPrice}}</view></view>
       </view>
       <text class="sheet-title">选择规格</text>
       <view class="detail-specs">
         <button v-for="(item, index) in specs" :key="item.name" hover-class="none" :class="selectedSpec === item.name ? 'on' : ''" :data-name="item.name" @tap="selectSpec">
-          <text>{{item.name}}</text><text v-if="item.extra">+¥{{item.extra}}</text><text v-else>原价</text>
+          <text>{{item.name}}</text><text v-if="item.extra">+楼{{item.extra}}</text><text v-else>鍘熶环</text>
         </button>
       </view>
       <view class="sheet-quantity-row">
@@ -76,7 +76,7 @@
         <view :class="`sheet-stepper ${count === 1 ? 'single' : ''}`">
           <button v-if="count > 1" hover-class="none" class="minus" @tap="decrease">−</button>
           <input class="count-input" type="number" :value="count" @blur="setCount" />
-          <button hover-class="none" class="plus" @tap="increase">＋</button>
+          <button hover-class="none" class="plus" @tap="increase">+</button>
         </view>
       </view>
     </view>
@@ -86,20 +86,22 @@
 
 <script>
 import adaptPage from '@/utils/page-adapter.js'
-// 商品详情页：展示商品信息，处理规格、数量、收藏及加入购物车。
+// 鍟嗗搧璇︽儏椤碉細灞曠ず鍟嗗搧淇℃伅锛屽鐞嗚鏍笺€佹暟閲忋€佹敹钘忓強鍔犲叆璐墿杞︺€?
 
 import data from '../../utils/data.js'
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
+import orderBackend from '../../utils/order-backend.js'
+import favoriteBackend from '../../utils/favorite-backend.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
     food: null,
     detail: null,
     favorite: false,
-    selectedSpec: '标准份',
+    selectedSpec: '标准价',
     specs: [
-      { name: '标准份', extra: 0 },
+      { name: '标准价', extra: 0 },
       { name: '加大份', extra: 5 },
       { name: '双倍主菜', extra: 9 }
     ],
@@ -108,7 +110,7 @@ const pageConfig = {
     cartCount: 0,
     showSpecSheet: false
   },
-  // 根据页面参数 id 读取商品和详情数据，不存在时提示并返回。
+  // 根据商品 id 读取详情数据，找不到商品时返回上一页。
   onLoad(options) {
     const food = data.foods.find(item => item.id === Number(options.id))
     if (!food) {
@@ -124,15 +126,21 @@ const pageConfig = {
       showSpecSheet: options.openSpec === '1'
     })
   },
-  onShow() {
+  async onShow() {
     if (!this.food) return
+    if (store.isLogin()) {
+      try {
+        await favoriteBackend.fetchFavorites()
+      } catch (err) {
+        console.error('fetch favorites failed', err)
+      }
+    }
     this.setData({
-      favorite: store.get('sk_favorites', []).includes(this.food.id),
+      favorite: favoriteBackend.getCachedIds().includes(this.food.id),
       cartCount: store.isLogin() ? store.cartSummary().count : 0
     })
   },
   back() { uni.navigateBack() },
-  // 规格变化时更新附加价和展示价格。
   selectSpec(e) {
     const selectedSpec = e.currentTarget.dataset.name
     const spec = this.specs.find(item => item.name === selectedSpec)
@@ -163,17 +171,23 @@ const pageConfig = {
   openSpecSheet() { this.setData({ showSpecSheet: true }) },
   closeSpecSheet() { this.setData({ showSpecSheet: false }) },
   noop() {},
-  // 收藏状态保存在 sk_favorites，并立即刷新星标状态。
-  toggleFavorite() {
+  // 收藏状态改由 uniCloud 后端保存，前端只保留一份缓存用于即时刷新星标。
+  async toggleFavorite() {
     const id = this.food.id
     if (!auth.requireLogin(`/pages/product-detail/product-detail?id=${id}`)) return
-    const favorites = store.get('sk_favorites', [])
-    const favorite = !favorites.includes(id)
-    store.set('sk_favorites', favorite ? favorites.concat(id) : favorites.filter(item => item !== id))
-    this.setData({ favorite })
-    uni.showToast({ title: favorite ? '已收藏' : '已取消收藏', icon: 'none' })
+    const oldFavorite = this.favorite
+    this.setData({ favorite: !oldFavorite })
+    try {
+      const result = await favoriteBackend.toggleFavorite(this.food)
+      this.setData({ favorite: result.favorite })
+      uni.showToast({ title: result.favorite ? '已收藏' : '已取消收藏', icon: 'none' })
+    } catch (err) {
+      console.error('toggle favorite failed', err)
+      this.setData({ favorite: oldFavorite })
+      uni.showToast({ title: '收藏失败，请重试', icon: 'none' })
+    }
   },
-  // 首次点击先展开规格面板，面板已打开时才确认加入购物车。
+  // 棣栨鐐瑰嚮鍏堝睍寮€瑙勬牸闈㈡澘锛岄潰鏉垮凡鎵撳紑鏃舵墠纭鍔犲叆璐墿杞︺€?
   addCart() {
     const food = this.food
     if (!this.showSpecSheet) {
@@ -182,9 +196,10 @@ const pageConfig = {
     }
     if (!auth.requireLogin(`/pages/product-detail/product-detail?id=${food.id}&openSpec=1`)) return
     const spec = this.specs.find(item => item.name === this.selectedSpec)
-    store.addCart({ ...food, price: food.price + spec.extra }, this.count, `${spec.name}${spec.extra ? ` +¥${spec.extra}` : ''}`)
+    store.addCart({ ...food, price: food.price + spec.extra }, this.count, `${spec.name}${spec.extra ? ` +楼${spec.extra}` : ''}`)
+    orderBackend.saveCart(store.getCart()).catch(err => console.error('sync cart failed', err))
     this.setData({ cartCount: store.cartSummary().count, showSpecSheet: false, count: 1 })
-    uni.showToast({ title: '已加入购物车', icon: 'success' })
+    uni.showToast({ title: '宸插姞鍏ヨ喘鐗╄溅', icon: 'success' })
   },
   goCart() {
     if (auth.requireLogin('/pages/cart/cart')) uni.navigateTo({ url: '/pages/cart/cart' })
@@ -255,7 +270,7 @@ export default adaptPage(pageConfig)
 .product-hero{overflow:hidden}.product-hero>image{width:100%;height:100%;display:block}
 .sheet-visual{overflow:hidden}.sheet-visual image{width:100%;height:100%;display:block}
 
-/* 商品详情底部左侧两个入口只保留图标和文字，不使用 H5 默认按钮灰底。 */
+/* 鍟嗗搧璇︽儏搴曢儴宸︿晶涓や釜鍏ュ彛鍙繚鐣欏浘鏍囧拰鏂囧瓧锛屼笉浣跨敤 H5 榛樿鎸夐挳鐏板簳銆?*/
 .product-actions .cart-entry,
 .product-actions .favorite-entry,
 uni-button.cart-entry,
@@ -273,3 +288,4 @@ uni-button.favorite-entry::after{
 }
 
 </style>
+

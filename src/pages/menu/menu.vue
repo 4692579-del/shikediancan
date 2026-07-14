@@ -80,6 +80,7 @@ import data from '../../utils/data.js'
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
 import membership from '../../utils/membership.js'
+import orderBackend from '../../utils/order-backend.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -167,6 +168,7 @@ const pageConfig = {
     if (this.selectedSpec.indexOf('+¥5') > -1) food.price += 5
     if (this.selectedSpec.indexOf('+¥9') > -1) food.price += 9
     store.addCart(food, this.specCount, this.selectedSpec)
+    orderBackend.saveCart(store.getCart()).catch(err => console.error('sync cart failed', err))
     this.closeSpec()
     this.refreshCart()
     uni.showToast({ title: '已加入购物车' })

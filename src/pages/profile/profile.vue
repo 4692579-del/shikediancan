@@ -4,7 +4,7 @@
     <text v-if="profileTheme.watermark" class="profile-v-watermark">V</text>
     <button hover-class="none" v-if="user" class="user-row" @tap="account">
       <view class="user-avatar"><image :src="user.avatar" mode="aspectFill" /></view>
-      <view class="user-copy"><view class="name-line"><text class="user-name">{{user.nickname}}</text><text v-if="membershipActive" :class="`level-chip ${membershipTier === 'pro' ? 'pro-level-chip' : 'plus-level-chip'}`">{{membershipTier === 'pro' ? 'PRO会员' : 'PLUS会员'}}</text></view><text class="user-phone">{{user.phone}}</text></view><text class="chev">›</text>
+      <view class="user-copy"><view class="name-line"><text class="user-name">{{user.nickname}}</text><text v-if="membershipActive" :class="`level-chip ${membershipTier === 'pro' ? 'pro-level-chip' : 'plus-level-chip'}`">{{membershipTier === 'pro' ? 'PRO会员' : 'PLUS会员'}}</text></view><text class="user-phone">{{user.phone || user.username || '已登录账号'}}</text></view><text class="chev">›</text>
     </button>
     <button hover-class="none" v-else class="user-row" @tap="account">
       <view class="user-avatar guest"><image src="/static/assets/icons/user.svg" mode="aspectFit" /></view>
@@ -57,6 +57,7 @@ import auth from '../../utils/auth.js'
 import profileTheme from '../../utils/profile-theme.js'
 import wallet from '../../utils/wallet.js'
 import membership from '../../utils/membership.js'
+import favoriteBackend from '../../utils/favorite-backend.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -75,8 +76,15 @@ const pageConfig = {
   },
   onLoad() { this.setData({ statusHeight: getApp().globalData.statusBarHeight }) },
   // 同步用户资料、订单数量、收藏积分、会员状态和资料卡主题。
-  onShow() {
+  async onShow() {
     const user = store.get('sk_user', null)
+    if (user) {
+      try {
+        await favoriteBackend.fetchFavorites()
+      } catch (err) {
+        console.error('fetch favorites failed', err)
+      }
+    }
     const orders = user ? store.get('sk_orders', []) : []
     let themeId = user ? store.get('sk_profile_theme', 'black') : 'black'
     let theme = profileTheme.getTheme(themeId)

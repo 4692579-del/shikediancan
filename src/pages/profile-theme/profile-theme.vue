@@ -6,7 +6,7 @@
       <text class="preview-label">效果预览</text>
       <view :class="`theme-preview ${selectedTheme.tone === 'light' ? 'light-theme' : ''} ${selectedTheme.watermark ? 'limited-theme' : ''}`" :style="`background:${selectedTheme.color}`">
         <text v-if="selectedTheme.watermark" class="theme-v-watermark">V</text>
-        <view class="preview-user"><view class="preview-avatar"><image :src="user.avatar || '/static/assets/icons/user.svg'" :mode="user ? 'aspectFill' : 'aspectFit'" /></view><view><text>{{user.nickname || '食刻用户'}}</text><text>{{user.phone || '登录后享受更多服务'}}</text></view><text>›</text></view>
+        <view class="preview-user"><view class="preview-avatar"><image :src="user.avatar || '/static/assets/icons/user.svg'" :mode="user ? 'aspectFill' : 'aspectFit'" /></view><view><text>{{user.nickname || '食刻用户'}}</text><text>{{user.phone || user.username || '登录后享受更多服务'}}</text></view><text>›</text></view>
         <view class="preview-stats"><view><text>3</text><text>优惠券</text></view><view><text>0</text><text>收藏</text></view><view><text>128</text><text>积分</text></view></view>
       </view>
 

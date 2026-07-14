@@ -57,6 +57,7 @@ import adaptPage from '@/utils/page-adapter.js'
 
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
+import cloud from '../../utils/cloud.js'
 import { areaList } from '@vant/area-data'
 // 列表展示时将默认地址置顶，但不改变用户手动选择的地址。
 function defaultFirst(addresses = []) {
@@ -116,7 +117,7 @@ const pageConfig = {
     this.checkPrivacyAuthorization()
   },
   onShow() {
-    if (this.privacyReady) this.setData({ addresses: defaultFirst(store.getAddresses()), swipedId: 0 })
+    if (this.privacyReady) this.loadAddresses()
   },
   back() { uni.navigateBack() },
   // 地址属于个人信息；未明确同意协议前不读取、不展示，也不允许新增或编辑。
@@ -134,6 +135,30 @@ const pageConfig = {
       fail: () => this.setData({ privacyChecked: true, platformPrivacyRequired: false })
     })
   },
+  async loadAddresses() {
+    const user = store.get('sk_user', null)
+    if (!user || !user.uid) {
+      this.setData({ addresses: [], swipedId: 0 })
+      return
+    }
+    try {
+      const { result } = await cloud.callFunction({
+        name: 'address-service',
+        data: { action: 'list', userId: user.uid }
+      })
+      if (!result || result.code !== 0) {
+        uni.showToast({ title: (result && result.message) || '地址加载失败', icon: 'none' })
+        return
+      }
+      let addresses = result.addresses || []
+      addresses = store.setAddresses(addresses)
+      this.setData({ addresses: defaultFirst(addresses), swipedId: 0 })
+    } catch (err) {
+      console.error('load addresses failed:', cloud.normalizeError(err), err)
+      this.setData({ addresses: defaultFirst(store.getAddresses()), swipedId: 0 })
+      uni.showToast({ title: '地址加载失败，已显示本地缓存', icon: 'none' })
+    }
+  },
   enableAddressFeature() {
     store.set('sk_privacy_consent_v1', true)
     this.setData({
@@ -142,6 +167,7 @@ const pageConfig = {
       addresses: defaultFirst(store.getAddresses()),
       swipedId: 0
     })
+    this.loadAddresses()
   },
   agreePrivacy() { this.enableAddressFeature() },
   privacyAuthorizationResult(e) {
@@ -180,7 +206,8 @@ const pageConfig = {
     })
   },
   edit(e) {
-    const form = this.addresses.find(item => item.id === Number(e.currentTarget.dataset.id))
+    const id = String(e.currentTarget.dataset.id)
+    const form = this.addresses.find(item => String(item.id) === id)
     if (!form) return
     const region = form.region || []
     const provinceIndex = Math.max(0, areaEntries.provinces.findIndex(([, name]) => name === region[0]))
@@ -203,7 +230,7 @@ const pageConfig = {
     const dx = touch.clientX - this.touchX
     const dy = touch.clientY - this.touchY
     if (Math.abs(dx) <= Math.abs(dy) || Math.abs(dx) < 35) return
-    this.setData({ swipedId: dx < 0 ? Number(e.currentTarget.dataset.id) : 0 })
+    this.setData({ swipedId: dx < 0 ? String(e.currentTarget.dataset.id) : 0 })
   },
   close() { this.setData({ editing: false }) },
   field(e) { this.setData({ [`form.${e.currentTarget.dataset.field}`]: e.detail.value }) },
@@ -238,7 +265,7 @@ const pageConfig = {
     this.setData({ 'form.isDefault': !this.form.isDefault })
   },
   // 校验姓名、手机号、省市区和详细地址，并维护唯一默认地址。
-  save() {
+  async save() {
     const form = { ...this.form }
     form.name = form.name.trim()
     form.phone = form.phone.trim()
@@ -252,23 +279,41 @@ const pageConfig = {
     form.regionText = form.region.join(' ')
     form.fullDetail = `${form.regionText} ${form.detail}`
     if (!this.addresses.length) form.isDefault = true
-    let addresses = [...this.addresses]
-    if (form.isDefault) addresses = addresses.map(item => ({ ...item, isDefault: false }))
-    if (form.id) addresses = addresses.map(item => item.id === form.id ? form : item)
-    else addresses.push({ ...form, id: Date.now() })
-    addresses = store.setAddresses(addresses)
-    const selectedAddress = store.get('sk_selected_address', null)
-    if (selectedAddress && selectedAddress.id === form.id) {
-      const updatedSelected = addresses.find(item => item.id === form.id)
-      store.set('sk_selected_address', updatedSelected ? { ...updatedSelected } : null)
+    const user = store.get('sk_user', null)
+    if (!user || !user.uid) return uni.showToast({ title: '请先登录', icon: 'none' })
+    try {
+      uni.showLoading({ title: '保存中' })
+      const { result } = await cloud.callFunction({
+        name: 'address-service',
+        data: {
+          action: 'save',
+          userId: user.uid,
+          address: form
+        }
+      })
+      if (!result || result.code !== 0) {
+        uni.showToast({ title: (result && result.message) || '地址保存失败', icon: 'none' })
+        return
+      }
+      const addresses = store.setAddresses(result.addresses || [])
+      const selectedAddress = store.get('sk_selected_address', null)
+      if (selectedAddress && form.id && String(selectedAddress.id) === String(form.id)) {
+        const updatedSelected = addresses.find(item => String(item.id) === String(form.id))
+        store.set('sk_selected_address', updatedSelected ? { ...updatedSelected } : null)
+      }
+      this.setData({ addresses: defaultFirst(addresses), editing: false })
+      uni.showToast({ title: '地址已保存' })
+    } catch (err) {
+      console.error('save address failed:', cloud.normalizeError(err), err)
+      uni.showToast({ title: '地址保存失败', icon: 'none' })
+    } finally {
+      uni.hideLoading()
     }
-    this.setData({ addresses: defaultFirst(addresses), editing: false })
-    uni.showToast({ title: '地址已保存' })
   },
   // 删除默认地址前确保其他地址已被设为默认；唯一地址允许直接删除。
   remove(e) {
-    const id = Number(e.currentTarget.dataset.id)
-    const target = this.addresses.find(item => item.id === id)
+    const id = String(e.currentTarget.dataset.id)
+    const target = this.addresses.find(item => String(item.id) === id)
     if (!target) return
     if (target.isDefault && this.addresses.length > 1) {
       uni.showModal({
@@ -279,12 +324,30 @@ const pageConfig = {
       })
       return
     }
-    uni.showModal({ title: '删除地址', content: '确定删除这个收货地址吗？', success: res => {
+    uni.showModal({ title: '删除地址', content: '确定删除这个收货地址吗？', success: async res => {
       if (!res.confirm) return
-      const addresses = store.setAddresses(this.addresses.filter(item => item.id !== id))
-      const selectedAddress = store.get('sk_selected_address', null)
-      if (selectedAddress && selectedAddress.id === id) store.set('sk_selected_address', null)
-      this.setData({ addresses: defaultFirst(addresses), swipedId: 0 })
+      const user = store.get('sk_user', null)
+      if (!user || !user.uid) return uni.showToast({ title: '请先登录', icon: 'none' })
+      try {
+        uni.showLoading({ title: '删除中' })
+        const { result } = await cloud.callFunction({
+          name: 'address-service',
+          data: { action: 'remove', userId: user.uid, id }
+        })
+        if (!result || result.code !== 0) {
+          uni.showToast({ title: (result && result.message) || '地址删除失败', icon: 'none' })
+          return
+        }
+        const addresses = store.setAddresses(result.addresses || [])
+        const selectedAddress = store.get('sk_selected_address', null)
+        if (selectedAddress && String(selectedAddress.id) === id) store.set('sk_selected_address', null)
+        this.setData({ addresses: defaultFirst(addresses), swipedId: 0 })
+      } catch (err) {
+        console.error('remove address failed:', cloud.normalizeError(err), err)
+        uni.showToast({ title: '地址删除失败', icon: 'none' })
+      } finally {
+        uni.hideLoading()
+      }
     }})
   },
   // 选择地址只更新当前收货选择，不擅自修改默认地址。
@@ -294,7 +357,8 @@ const pageConfig = {
       return
     }
     if (!this.selectMode) return
-    const address = this.addresses.find(item => item.id === Number(e.currentTarget.dataset.id))
+    const id = String(e.currentTarget.dataset.id)
+    const address = this.addresses.find(item => String(item.id) === id)
     if (!address) return
     store.set('sk_selected_address', { ...address })
     uni.navigateBack()

@@ -1,48 +1,105 @@
-<template>
+﻿<template>
 <view :style="globalThemeStyle" class="page orders-page">
   <view class="orders-head" :style="`padding-top:${statusHeight}px`">
-    <view class="nav-row"><text class="nav-title">我的订单</text><view class="nav-back"></view></view>
+    <view class="nav-row">
+      <text class="nav-title">我的订单</text>
+      <view class="nav-back"></view>
+    </view>
     <view class="order-tabs">
-      <button hover-class="none" :class="active !== 'unpaid' ? 'active' : ''" @tap="toggleStatusMenu"><text>{{activeLabel}}</text><text :class="`tab-arrow ${showStatusMenu ? 'open' : ''}`">▼</text></button>
+      <button hover-class="none" :class="active !== 'unpaid' ? 'active' : ''" @tap="toggleStatusMenu">
+        <text>{{ activeLabel }}</text>
+        <text :class="`tab-arrow ${showStatusMenu ? 'open' : ''}`">▼</text>
+      </button>
       <button hover-class="none" :class="active === 'unpaid' ? 'active' : ''" data-id="unpaid" @tap="selectTab">待付款</button>
     </view>
     <view v-if="showStatusMenu" class="status-menu">
-      <button v-for="(item, index) in moreTabs" :key="item.id" hover-class="none" :class="active === item.id ? 'selected' : ''" :data-id="item.id" @tap="selectMoreTab">{{item.name}}</button>
+      <button
+        v-for="item in moreTabs"
+        :key="item.id"
+        hover-class="none"
+        :class="active === item.id ? 'selected' : ''"
+        :data-id="item.id"
+        @tap="selectMoreTab"
+      >{{ item.name }}</button>
     </view>
   </view>
+
   <scroll-view scroll-y :show-scrollbar="false" class="order-list">
-    <view v-for="(item, index) in filtered" :key="item.id" class="order-card card">
-      <view class="order-head"><view class="shop-logo">食</view><text class="order-shop">{{item.shopName}} ›</text><text :class="`status ${item.status}`">{{item.status === 'unpaid' ? '待付款' : item.status === 'making' ? '商家制作中' : item.status === 'delivery' ? '配送中' : item.status === 'cancelled' ? '订单已取消' : '已完成'}}</text></view>
-      <view class="order-goods"><view class="food-stack"><view v-for="(food, index) in item.items" :key="food.key" v-if="index < 3" class="mini-food" :style="`background:${food.bg}`"><image :src="food.icon" mode="aspectFill" /></view></view><view class="order-summary"><text>{{item.items && item.items.length ? item.items[0].name : '订单商品'}}{{item.items && item.items.length > 1 ? ' 等' + item.items.length + '件' : ''}}</text><text>实付 ¥{{item.total}}</text></view></view>
-      <view class="order-time">{{item.createdAt}}</view>
+    <view v-for="item in filtered" :key="item.id" class="order-card card">
+      <view class="order-head">
+        <view class="shop-logo">食</view>
+        <text class="order-shop">{{ item.shopName || '食刻·品质厨房' }} ›</text>
+        <text :class="`status ${item.status}`">{{ statusLabel(item.status) }}</text>
+      </view>
+
+      <view class="order-goods">
+        <view class="food-stack">
+          <view
+            v-for="food in (item.items || []).slice(0, 3)"
+            :key="food.key || food.id || food.name"
+            class="mini-food"
+            :style="`background:${food.bg || '#f6e2c9'}`"
+          >
+            <image v-if="food.icon" :src="food.icon" mode="aspectFill" />
+            <text v-else>食</text>
+          </view>
+        </view>
+        <view class="order-summary">
+          <text>{{ orderSummary(item) }}</text>
+          <text>实付 ¥{{ item.total }}</text>
+        </view>
+      </view>
+
+      <view class="order-time">{{ item.createdAt }}</view>
       <view :class="`order-actions ${item.status === 'unpaid' ? 'has-pay' : ''}`">
-        <button hover-class="none" v-if="item.status === 'unpaid' || item.status === 'done' || item.status === 'cancelled'" class="more-action" :data-id="item.id" :data-status="item.status" @tap.stop="moreActions"><view class="more-dots"><text></text><text></text><text></text></view></button>
+        <button
+          v-if="item.status === 'unpaid' || item.status === 'done' || item.status === 'cancelled'"
+          hover-class="none"
+          class="more-action"
+          :data-id="item.id"
+          :data-status="item.status"
+          @tap.stop="moreActions"
+        >
+          <view class="more-dots"><text></text><text></text><text></text></view>
+        </button>
         <button hover-class="none" class="orange-btn action-main" :data-id="item.id" @tap.stop="detail">查看详情</button>
-        <button hover-class="none" v-if="item.status === 'unpaid'" class="pay-main" :data-id="item.id" @tap.stop="pay">立即支付</button>
+        <button v-if="item.status === 'unpaid'" hover-class="none" class="pay-main" :data-id="item.id" @tap.stop="pay">立即支付</button>
       </view>
     </view>
-    <view v-if="!filtered.length" class="empty"><view class="empty-icon"><image src="/static/assets/icons/order.svg" mode="aspectFit" /></view><view class="empty-title">还没有相关订单</view><view class="empty-desc">下单后可以在这里查看进度</view><button hover-class="none" class="primary-btn" @tap="goMenu">去点餐</button></view>
+
+    <view v-if="!filtered.length" class="empty">
+      <view class="empty-icon"><image src="/static/assets/icons/order.svg" mode="aspectFit" /></view>
+      <view class="empty-title">还没有相关订单</view>
+      <view class="empty-desc">下单后可以在这里查看进度</view>
+      <button hover-class="none" class="primary-btn" @tap="goMenu">去点餐</button>
+    </view>
     <view class="order-list-end"></view>
   </scroll-view>
+
   <bottom-nav active="orders" />
 </view>
 </template>
-
 <script>
 import adaptPage from '@/utils/page-adapter.js'
-// 订单列表页：按状态筛选普通订单，并提供付款、取消、删除和再来一单操作。
-
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
 import paymentCountdown from '../../utils/payment-countdown.js'
+import orderBackend from '../../utils/order-backend.js'
+
 const pageConfig = {
   data: {
-    statusHeight: 20, active: 'all', activeLabel: '全部', showStatusMenu: false,
-    orders: [], filtered: [], cartCount: 0,
+    statusHeight: 20,
+    active: 'all',
+    activeLabel: '全部',
+    showStatusMenu: false,
+    orders: [],
+    filtered: [],
+    cartCount: 0,
     moreTabs: [
       { id: 'all', name: '全部' },
       { id: 'making', name: '进行中' },
       { id: 'done', name: '已完成' },
+      { id: 'reviewed', name: '已评价' },
       { id: 'cancelled', name: '已取消' }
     ]
   },
@@ -50,43 +107,78 @@ const pageConfig = {
     if (!auth.guardPage('/pages/orders/orders')) return
     this.setData({ statusHeight: getApp().globalData.statusBarHeight })
   },
-  onShow() {
+  async onShow() {
     const active = uni.getStorageSync('sk_order_filter') || this.active
     uni.removeStorageSync('sk_order_filter')
     const activeLabel = active === 'unpaid' ? '全部' : (this.moreTabs.find(item => item.id === active) || this.moreTabs[0]).name
-    this.setData({ orders: paymentCountdown.normalizeOrders(), active, activeLabel, showStatusMenu: false, cartCount: store.cartSummary().count })
+    let orders = []
+    try {
+      orders = await orderBackend.fetchOrders()
+    } catch (err) {
+      console.error('fetch backend orders failed', err)
+      orders = paymentCountdown.normalizeOrders()
+    }
+    this.setData({ orders, active, activeLabel, showStatusMenu: false, cartCount: store.cartSummary().count })
     this.filter()
   },
   toggleStatusMenu() { this.setData({ showStatusMenu: !this.showStatusMenu }) },
-  selectTab(e) { this.setData({ active: e.currentTarget.dataset.id, showStatusMenu: false }); this.filter() },
+  selectTab(e) {
+    this.setData({ active: e.currentTarget.dataset.id, showStatusMenu: false })
+    this.filter()
+  },
   selectMoreTab(e) {
     const active = e.currentTarget.dataset.id
     const activeLabel = this.moreTabs.find(item => item.id === active).name
     this.setData({ active, activeLabel, showStatusMenu: false })
     this.filter()
   },
-  // 根据全部、进行中、已完成和已取消状态过滤订单。
   filter() {
     const { orders, active } = this
     const filtered = active === 'all'
       ? orders
       : active === 'making'
         ? orders.filter(item => ['making', 'delivery'].includes(item.status))
-        : orders.filter(item => item.status === active)
+        : active === 'done'
+          ? orders.filter(item => item.status === 'done' && !item.reviewed && !item.review)
+          : active === 'reviewed'
+            ? orders.filter(item => item.status === 'done' && (item.reviewed || item.review))
+            : orders.filter(item => item.status === active)
     this.setData({ filtered })
   },
-  detail(e) { uni.navigateTo({ url: `/pages/order-detail/order-detail?id=${e.currentTarget.dataset.id}` }) },
-  // 仅待支付且未超时订单可继续进入收银台。
-  pay(e) {
-    const order = paymentCountdown.getOrder(e.currentTarget.dataset.id)
+  statusLabel(status) {
+    const map = {
+      unpaid: '待付款',
+      making: '商家制作中',
+      delivery: '配送中',
+      done: '已完成',
+      cancelled: '订单已取消'
+    }
+    return map[status] || '进行中'
+  },
+  orderSummary(item) {
+    const items = item.items || []
+    if (!items.length) return '订单商品'
+    return `${items[0].name}${items.length > 1 ? ` 等${items.length}件` : ''}`
+  },
+  detail(e) {
+    uni.navigateTo({ url: `/pages/order-detail/order-detail?id=${e.currentTarget.dataset.id}` })
+  },
+  async pay(e) {
+    const id = e.currentTarget.dataset.id
+    let order = null
+    try {
+      order = await orderBackend.getOrder(id)
+    } catch (err) {
+      console.error('load pay order failed', err)
+      order = paymentCountdown.getOrder(id)
+    }
     if (!order || order.status !== 'unpaid') {
-      this.onShow()
+      await this.onShow()
       return uni.showToast({ title: '该订单已取消', icon: 'none' })
     }
     store.set('sk_order_draft', order)
     uni.navigateTo({ url: `/pages/pay/pay?amount=${order.total}&existing=${order.id}` })
   },
-  // 三个点菜单根据订单状态动态提供取消、删除或再来一单。
   moreActions(e) {
     const { id, status } = e.currentTarget.dataset
     const itemList = status === 'unpaid'
@@ -108,20 +200,28 @@ const pageConfig = {
     uni.showModal({
       title: '取消订单',
       content: '确定要取消这笔待付款订单吗？',
-      success: res => {
+      success: async res => {
         if (!res.confirm) return
-        const orders = this.orders.map(item => item.id === id ? { ...item, status: 'cancelled' } : item)
-        store.set('sk_orders', orders)
-        this.setData({ orders })
-        this.filter()
-        uni.showToast({ title: '订单已取消' })
+        try {
+          const order = await orderBackend.cancelOrder(id)
+          const orders = this.orders.map(item => item.id === id ? order : item)
+          store.set('sk_orders', orders)
+          this.setData({ orders })
+          this.filter()
+          uni.showToast({ title: '订单已取消' })
+        } catch (err) {
+          console.error('cancel order failed', err)
+          uni.showToast({ title: '取消失败，请重试', icon: 'none' })
+        }
       }
     })
   },
-  // 将历史订单商品重新写入购物车并默认勾选。
-  againOrder(id) {
+  async againOrder(id) {
     const order = this.orders.find(item => item.id === id)
-    store.set('sk_cart', order.items.map(item => ({ ...item, checked: true })))
+    if (!order || !order.items) return
+    const cart = order.items.map(item => ({ ...item, checked: true }))
+    store.set('sk_cart', cart)
+    orderBackend.saveCart(cart).catch(err => console.error('sync cart failed', err))
     uni.navigateTo({ url: '/pages/cart/cart' })
   },
   deleteOrder(id) {
@@ -129,13 +229,19 @@ const pageConfig = {
       title: '删除订单',
       content: '删除后无法恢复，确定删除这笔订单吗？',
       confirmColor: '#ff4d3d',
-      success: res => {
+      success: async res => {
         if (!res.confirm) return
-        const orders = this.orders.filter(item => item.id !== id)
-        store.set('sk_orders', orders)
-        this.setData({ orders })
-        this.filter()
-        uni.showToast({ title: '订单已删除' })
+        try {
+          await orderBackend.deleteOrder(id)
+          const orders = this.orders.filter(item => item.id !== id)
+          store.set('sk_orders', orders)
+          this.setData({ orders })
+          this.filter()
+          uni.showToast({ title: '订单已删除' })
+        } catch (err) {
+          console.error('delete order failed', err)
+          uni.showToast({ title: '删除失败，请重试', icon: 'none' })
+        }
       }
     })
   },
@@ -285,7 +391,7 @@ export default adaptPage(pageConfig)
   font-weight:700;
 }
 
-/* 清除订单页筛选按钮在 H5 下的默认浅灰底色，选中项仍由上面的规则单独着色。 */
+/* 娓呴櫎璁㈠崟椤电瓫閫夋寜閽湪 H5 涓嬬殑榛樿娴呯伆搴曡壊锛岄€変腑椤逛粛鐢变笂闈㈢殑瑙勫垯鍗曠嫭鐫€鑹层€?*/
 .order-tabs button,
 .status-menu button{
   background:transparent!important;
@@ -294,7 +400,7 @@ export default adaptPage(pageConfig)
 }
 .status-menu button.selected{background:var(--orange-soft)!important}
 
-/* 订单卡片采用紧凑信息层级，避免商品、时间和操作区之间留下过大的空白。 */
+/* 璁㈠崟鍗＄墖閲囩敤绱у噾淇℃伅灞傜骇锛岄伩鍏嶅晢鍝併€佹椂闂村拰鎿嶄綔鍖轰箣闂寸暀涓嬭繃澶х殑绌虹櫧銆?*/
 .order-card{
   display:block;
   box-sizing:border-box;
@@ -328,7 +434,7 @@ export default adaptPage(pageConfig)
 .more-dots text{width:7rpx;height:7rpx;border-radius:50%;background:#777;display:block}
 .order-actions .action-main{height:52rpx!important}
 
-/* 每张订单卡片只通过右下角“查看详情”进入详情页，避免整张卡片误触。 */
+/* 姣忓紶璁㈠崟鍗＄墖鍙€氳繃鍙充笅瑙掆€滄煡鐪嬭鎯呪€濊繘鍏ヨ鎯呴〉锛岄伩鍏嶆暣寮犲崱鐗囪瑙︺€?*/
 .order-actions{
   display:grid!important;
   grid-template-columns:60rpx 1fr 168rpx!important;
@@ -364,8 +470,7 @@ uni-button.action-main.orange-btn{
   white-space:nowrap!important;
 }
 
-/* H5 中页面样式会全局叠加，确认订单页的 .order-goods 曾污染订单卡片。
-   这里用页面根类强制锁定订单列表的紧凑布局，刷新前后保持一致。 */
+/* H5 涓〉闈㈡牱寮忎細鍏ㄥ眬鍙犲姞锛岀‘璁よ鍗曢〉鐨?.order-goods 鏇炬薄鏌撹鍗曞崱鐗囥€?   杩欓噷鐢ㄩ〉闈㈡牴绫诲己鍒堕攣瀹氳鍗曞垪琛ㄧ殑绱у噾甯冨眬锛屽埛鏂板墠鍚庝繚鎸佷竴鑷淬€?*/
 .orders-page .order-card{
   width:auto!important;
   max-width:none!important;
@@ -463,7 +568,7 @@ uni-button.action-main.orange-btn{
   font-weight:700!important;
 }
 
-/* 订单卡片最终视觉：略微增高卡片与操作区，按钮同高同宽，待支付补充“立即支付”。 */
+/* 璁㈠崟鍗＄墖鏈€缁堣瑙夛細鐣ュ井澧為珮鍗＄墖涓庢搷浣滃尯锛屾寜閽悓楂樺悓瀹斤紝寰呮敮浠樿ˉ鍏呪€滅珛鍗虫敮浠樷€濄€?*/
 .orders-page .order-card{
   padding:20rpx 22rpx!important;
   margin:0 0 16rpx!important;
@@ -556,3 +661,5 @@ uni-button.action-main.orange-btn{
 }
 
 </style>
+
+

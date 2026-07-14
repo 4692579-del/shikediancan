@@ -38,6 +38,7 @@ import adaptPage from '@/utils/page-adapter.js'
 import data from '../../utils/data.js'
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
+import orderBackend from '../../utils/order-backend.js'
 const pageConfig = {
   data: { statusHeight: 20, keyword: '', results: [], searched: false, history: [], swipedHistory: '', hot: ['照烧鸡腿饭', '麻辣香锅', '杨枝甘露', '轻食沙拉', '牛肉意面', '双人餐'] },
   onLoad() {
@@ -89,6 +90,7 @@ const pageConfig = {
   add(e) {
     const food = data.foods.find(item => item.id === Number(e.currentTarget.dataset.id))
     store.addCart(food)
+    orderBackend.saveCart(store.getCart()).catch(err => console.error('sync cart failed', err))
     uni.showToast({ title: '已加入购物车' })
   },
 }

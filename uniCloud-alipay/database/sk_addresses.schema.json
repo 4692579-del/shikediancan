@@ -1,0 +1,61 @@
+{
+  "bsonType": "object",
+  "required": ["userId", "name", "phone", "region", "detail"],
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": {
+      "description": "地址ID"
+    },
+    "userId": {
+      "bsonType": "string",
+      "description": "所属用户ID"
+    },
+    "name": {
+      "bsonType": "string",
+      "description": "联系人姓名"
+    },
+    "phone": {
+      "bsonType": "string",
+      "description": "联系人手机号"
+    },
+    "gender": {
+      "bsonType": "string",
+      "description": "称呼"
+    },
+    "region": {
+      "bsonType": "array",
+      "description": "省市区"
+    },
+    "regionText": {
+      "bsonType": "string",
+      "description": "省市区文本"
+    },
+    "detail": {
+      "bsonType": "string",
+      "description": "详细地址"
+    },
+    "fullDetail": {
+      "bsonType": "string",
+      "description": "完整地址"
+    },
+    "tag": {
+      "bsonType": "string",
+      "description": "地址标签"
+    },
+    "isDefault": {
+      "bsonType": "bool",
+      "description": "是否默认地址"
+    },
+    "createdAt": {
+      "bsonType": "long"
+    },
+    "updatedAt": {
+      "bsonType": "long"
+    }
+  }
+}

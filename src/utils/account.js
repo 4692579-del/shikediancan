@@ -5,9 +5,11 @@ import membership from './membership.js'
 const PROFILE_KEY = 'sk_account_profiles'
 const THEME_KEY = 'sk_profile_theme'
 
-// 为第三方平台登录和手机号登录生成稳定的本地账号标识。
+// 为后端账号生成稳定的本地账号标识，用于恢复头像、昵称、主题等本地偏好。
 function getAccountId(user = {}) {
   if (user.accountId) return user.accountId
+  if (user.uid) return `cloud:${user.uid}`
+  if (user.username) return `username:${user.username}`
   return user.phone ? `account:${user.phone}` : 'account:quick-default'
 }
 
@@ -33,7 +35,7 @@ function login(defaultUser) {
   const profiles = getProfiles()
   const legacyId = defaultUser.phone ? `account:${defaultUser.phone}` : ''
   const profile = profiles[accountId] || (legacyId ? profiles[legacyId] : null)
-  const user = { ...defaultUser, ...(profile ? profile.user : {}), accountId }
+  const user = { ...(profile ? profile.user : {}), ...defaultUser, accountId }
   const themeId = profile ? profile.themeId : 'black'
   store.set('sk_user', user)
   store.set(THEME_KEY, themeId)

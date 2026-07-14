@@ -1,0 +1,6 @@
+{
+  "name": "address-service",
+  "version": "1.0.0",
+  "description": "食刻点餐地址管理云函数",
+  "main": "index.js"
+}

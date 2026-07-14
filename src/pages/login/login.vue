@@ -1,33 +1,63 @@
 <template>
 <view class="login-page" :style="`${globalThemeStyle};--login-status-height:${statusHeight}px; padding-top:${statusHeight}px`">
-  <button hover-class="none" class="back login-page-back" @tap="back"><image src="/static/assets/icons/back.svg" mode="aspectFit" /></button>
-  <view class="login-art">
-    <view class="brand-mark"><image src="/static/assets/login-brand-mobile.jpg" mode="aspectFill" /></view>
-    <view class="art-orbit o1"><image src="/static/assets/icons/snack.svg" mode="aspectFit" /></view><view class="art-orbit o2"><image src="/static/assets/icons/restaurant.svg" mode="aspectFit" /></view><view class="art-orbit o3"><image src="/static/assets/icons/fruit.svg" mode="aspectFit" /></view>
+  <button hover-class="none" class="back login-page-back" @tap="back">
+    <image src="/static/assets/icons/back.svg" mode="aspectFit" />
+  </button>
+
+  <view class="login-hero">
+    <view class="hero-bg">
+      <view class="glass-piece p1"></view>
+      <view class="glass-piece p2"></view>
+      <view class="glass-piece p3"></view>
+      <view class="glass-piece p4"></view>
+    </view>
+    <view class="hero-copy">
+      <text class="hello">Hello!</text>
+      <text class="login-title">{{ labels.title }}</text>
+      <text class="login-sub">{{ labels.sub }}</text>
+    </view>
+    <view class="brand-mark">
+      <image src="/static/assets/login-brand-mobile.jpg" mode="aspectFill" />
+    </view>
   </view>
+
   <view class="login-card">
-    <text class="login-title">欢迎来到食刻</text>
-    <text class="login-sub">登录后享受专属优惠与便捷点餐</text>
-    <view :class="`login-method-stage ${showPhoneLogin ? 'phone-mode' : 'quick-mode'}`">
-      <view class="login-method-panel quick-method">
-        <button hover-class="none" class="quick-btn" @tap="quickLogin"><view class="quick-mark">捷</view><text>一键登录</text></button>
-        <button hover-class="none" class="phone-entry" @tap="togglePhoneLogin">使用手机号登录</button>
+    <view :class="`mode-tabs ${mode === 'login' ? 'login-active' : 'register-active'}`">
+      <button hover-class="none" :class="`mode-tab ${mode === 'login' ? 'active' : ''}`" data-mode="login" @tap="switchMode">{{ labels.login }}</button>
+      <button hover-class="none" :class="`mode-tab ${mode === 'register' ? 'active' : ''}`" data-mode="register" @tap="switchMode">{{ labels.register }}</button>
+    </view>
+
+    <view :key="formAnimateKey" class="form-panel">
+      <view class="input-row">
+        <input maxlength="20" :placeholder="labels.usernamePlaceholder" :value="username" @input="usernameInput" />
       </view>
-      <view v-if="showPhoneLogin" class="login-method-panel phone-login-panel">
-        <view class="input-row phone-row"><text>+86</text><input type="number" maxlength="11" placeholder="请输入手机号" :value="phone" @input="phoneInput"/></view>
-        <view class="input-row code-row"><input type="number" maxlength="4" placeholder="请输入验证码" :value="code" @input="codeInput"/><button hover-class="none" class="code-btn" @tap="sendCode">{{sent ? countdown + 's' : '获取验证码'}}</button></view>
-        <button hover-class="none" class="primary-btn login-btn" @tap="login">手机号登录</button>
-        <button hover-class="none" class="login-switch" @tap="togglePhoneLogin">使用一键登录</button>
+      <view class="input-row password-row">
+        <input :password="!showPassword" maxlength="20" :placeholder="labels.passwordPlaceholder" :value="password" @input="passwordInput" />
+        <button hover-class="none" class="eye-btn" data-field="password" @tap="togglePasswordVisible">
+          <image :src="showPassword ? '/static/assets/icons/eye-off.svg' : '/static/assets/icons/eye.svg'" mode="aspectFit" />
+        </button>
+      </view>
+      <view v-if="mode === 'register'" class="input-row password-row confirm-row">
+        <input :password="!showConfirmPassword" maxlength="20" :placeholder="labels.confirmPlaceholder" :value="confirmPassword" @input="confirmInput" />
+        <button hover-class="none" class="eye-btn" data-field="confirm" @tap="togglePasswordVisible">
+          <image :src="showConfirmPassword ? '/static/assets/icons/eye-off.svg' : '/static/assets/icons/eye.svg'" mode="aspectFit" />
+        </button>
       </view>
     </view>
 
+    <button hover-class="none" class="primary-btn login-btn" :disabled="loading" @tap="submit">
+      {{ loading ? labels.processing : (mode === 'login' ? labels.loginButton : labels.registerButton) }}
+    </button>
+
     <view class="agreement">
-      <button hover-class="none" :class="`agree-box ${agreed ? 'on' : ''}`" @tap="toggleAgree"><image src="/static/assets/icons/check.svg" mode="aspectFit" /></button>
+      <button hover-class="none" :class="`agree-box ${agreed ? 'on' : ''}`" @tap="toggleAgree">
+        <image src="/static/assets/icons/check.svg" mode="aspectFit" />
+      </button>
       <view class="agreement-copy">
-        <text>我已阅读并同意</text>
-        <button hover-class="none" class="agreement-link" data-type="user" @tap="openAgreement">《用户服务协议》</button>
-        <text>和</text>
-        <button hover-class="none" class="agreement-link" data-type="privacy" @tap="openAgreement">《隐私政策》</button>
+        <text>{{ labels.agreePrefix }}</text>
+        <button hover-class="none" class="agreement-link" data-type="user" @tap="openAgreement">{{ labels.service }}</button>
+        <text>{{ labels.and }}</text>
+        <button hover-class="none" class="agreement-link" data-type="privacy" @tap="openAgreement">{{ labels.privacy }}</button>
       </view>
     </view>
   </view>
@@ -36,291 +66,454 @@
 
 <script>
 import adaptPage from '@/utils/page-adapter.js'
-// 登录页：模拟一键登录和手机号验证码登录，并在成功后恢复原操作路径。
-
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
 import account from '../../utils/account.js'
+import cloud from '../../utils/cloud.js'
+
+const labels = {
+  title: '\u6b22\u8fce\u6765\u5230\u98df\u523b',
+  sub: '\u767b\u5f55\u540e\u4eab\u53d7\u4e13\u5c5e\u4f18\u60e0\u4e0e\u4fbf\u6377\u70b9\u9910',
+  login: '\u767b\u5f55',
+  register: '\u6ce8\u518c',
+  usernamePlaceholder: '\u8bf7\u8f93\u5165\u7528\u6237\u540d',
+  passwordPlaceholder: '\u8bf7\u8f93\u5165\u5bc6\u7801',
+  confirmPlaceholder: '\u8bf7\u518d\u6b21\u8f93\u5165\u5bc6\u7801',
+  loginButton: '\u767b\u5f55',
+  registerButton: '\u6ce8\u518c\u8d26\u53f7',
+  processing: '\u5904\u7406\u4e2d...',
+  noAccount: '\u8fd8\u6ca1\u6709\u8d26\u53f7\uff1f',
+  goRegister: '\u7acb\u5373\u6ce8\u518c',
+  hasAccount: '\u5df2\u6709\u8d26\u53f7\uff1f',
+  goLogin: '\u53bb\u767b\u5f55',
+  agreePrefix: '\u6211\u5df2\u9605\u8bfb\u5e76\u540c\u610f',
+  service: '\u300a\u7528\u6237\u670d\u52a1\u534f\u8bae\u300b',
+  privacy: '\u300a\u9690\u79c1\u653f\u7b56\u300b',
+  and: '\u548c'
+}
+
+function toast(title) {
+  uni.showToast({ title, icon: 'none' })
+}
+
 const pageConfig = {
-  data: { statusHeight: 20, agreed: false, showPhoneLogin: false, phone: '', code: '', sent: false, countdown: 60 },
-  onLoad() { this.setData({ statusHeight: getApp().globalData.statusBarHeight }) },
-  back() { auth.cancelLogin(); uni.navigateBack({ fail: () => uni.redirectTo({ url: '/pages/profile/profile' }) }) },
-  // 在一键登录和手机号登录表单之间切换。
-  togglePhoneLogin() {
-    if (this.showPhoneLogin) uni.hideKeyboard()
-    this.setData({ showPhoneLogin: !this.showPhoneLogin })
+  data: {
+    statusHeight: 20,
+    labels,
+    mode: 'login',
+    agreed: false,
+    username: '',
+    password: '',
+    confirmPassword: '',
+    showPassword: false,
+    showConfirmPassword: false,
+    formAnimateKey: 0,
+    loading: false
   },
-  toggleAgree() { this.setData({ agreed: !this.agreed }) },
-  // 协议正文使用独立页面展示，保证审核人员和用户均可完整查看。
+  onLoad() {
+    this.setData({ statusHeight: getApp().globalData.statusBarHeight || 20 })
+  },
+  back() {
+    auth.cancelLogin()
+    uni.navigateBack({ fail: () => uni.redirectTo({ url: '/pages/profile/profile' }) })
+  },
+  switchMode(e) {
+    const mode = e.currentTarget.dataset.mode === 'register' ? 'register' : 'login'
+    if (mode === this.mode) return
+    this.setData({ mode, password: '', confirmPassword: '', showPassword: false, showConfirmPassword: false, formAnimateKey: this.formAnimateKey + 1 })
+  },
+  toggleMode() {
+    const mode = this.mode === 'login' ? 'register' : 'login'
+    this.setData({ mode, password: '', confirmPassword: '', showPassword: false, showConfirmPassword: false, formAnimateKey: this.formAnimateKey + 1 })
+  },
+  toggleAgree() {
+    this.setData({ agreed: !this.agreed })
+  },
+  togglePasswordVisible(e) {
+    const field = e.currentTarget.dataset.field
+    if (field === 'confirm') {
+      this.setData({ showConfirmPassword: !this.showConfirmPassword })
+      return
+    }
+    this.setData({ showPassword: !this.showPassword })
+  },
   openAgreement(e) {
     const type = e.currentTarget.dataset.type === 'privacy' ? 'privacy' : 'user'
     uni.navigateTo({ url: `/pages/legal/legal?type=${type}` })
   },
-  phoneInput(e) { this.setData({ phone: e.detail.value }) },
-  codeInput(e) { this.setData({ code: e.detail.value }) },
-  // 模拟发送验证码并启动倒计时，测试验证码固定为 8888。
-  sendCode() {
-    if (!/^1\d{10}$/.test(this.phone)) return uni.showToast({ title: '请输入正确手机号', icon: 'none' })
-    this.setData({ sent: true, countdown: 60 })
-    uni.showToast({ title: '验证码：8888', icon: 'none', duration: 2500 })
-    this.timer = setInterval(() => {
-      const countdown = this.countdown - 1
-      this.setData({ countdown })
-      if (countdown <= 0) { clearInterval(this.timer); this.setData({ sent: false }) }
-    }, 1000)
+  usernameInput(e) {
+    this.setData({ username: (e.detail.value || '').trim() })
   },
-  // 手机号登录前校验协议、手机号和验证码。
-  login() {
-    if (!this.agreed) return uni.showToast({ title: '请先同意服务协议', icon: 'none' })
-    if (!/^1\d{10}$/.test(this.phone)) return uni.showToast({ title: '请输入正确手机号', icon: 'none' })
-    if (this.code !== '8888') return uni.showToast({ title: '验证码为 8888', icon: 'none' })
-    account.login({ accountId: `phone:${this.phone}`, nickname: '食刻用户', phone: this.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2'), avatar: '/static/assets/icons/smile.svg' })
-    store.set('sk_privacy_consent_v1', true)
-    uni.showToast({ title: '登录成功' })
-    setTimeout(() => auth.finishLogin(), 500)
+  passwordInput(e) {
+    this.setData({ password: e.detail.value || '' })
   },
-  // 第三方平台登录为前端模拟账号，不调用真实用户信息接口。
-  quickLogin() {
-    if (!this.agreed) return uni.showToast({ title: '请先同意服务协议', icon: 'none' })
-    uni.showLoading({ title: '登录中' })
-    setTimeout(() => {
-      uni.hideLoading()
-      account.login({ accountId: 'quick-default', nickname: '食刻用户', phone: '138****2026', avatar: '/static/assets/icons/smile.svg' })
+  confirmInput(e) {
+    this.setData({ confirmPassword: e.detail.value || '' })
+  },
+  validateForm() {
+    if (!this.agreed) {
+      toast('\u8bf7\u5148\u540c\u610f\u670d\u52a1\u534f\u8bae\u548c\u9690\u79c1\u653f\u7b56')
+      return false
+    }
+    if (!/^[a-zA-Z0-9_\u4e00-\u9fa5]{3,20}$/.test(this.username)) {
+      toast('\u7528\u6237\u540d\u9700\u4e3a3-20\u4f4d\u4e2d\u6587\u3001\u5b57\u6bcd\u3001\u6570\u5b57\u6216\u4e0b\u5212\u7ebf')
+      return false
+    }
+    if (!/^.{6,20}$/.test(this.password)) {
+      toast('\u5bc6\u7801\u9700\u4e3a6-20\u4f4d')
+      return false
+    }
+    if (this.mode === 'register' && this.password !== this.confirmPassword) {
+      toast('\u4e24\u6b21\u8f93\u5165\u7684\u5bc6\u7801\u4e0d\u4e00\u81f4')
+      return false
+    }
+    return true
+  },
+  async submit() {
+    if (this.loading || !this.validateForm()) return
+    this.setData({ loading: true })
+    try {
+      const { result } = await cloud.callFunction({
+        name: 'user-auth',
+        data: {
+          action: this.mode === 'register' ? 'register' : 'login',
+          username: this.username,
+          password: this.password
+        }
+      })
+      if (!result || result.code !== 0) {
+        toast((result && result.message) || '\u64cd\u4f5c\u5931\u8d25')
+        return
+      }
+      if (this.mode === 'register') {
+        uni.showToast({ title: '\u6ce8\u518c\u6210\u529f\uff0c\u8bf7\u767b\u5f55', icon: 'success' })
+        this.setData({ mode: 'login', password: '', confirmPassword: '' })
+        return
+      }
+      account.login(result.user)
+      store.set('sk_addresses', [])
+      store.set('sk_selected_address', null)
       store.set('sk_privacy_consent_v1', true)
-      uni.showToast({ title: '登录成功' })
-      setTimeout(() => auth.finishLogin(), 400)
-    }, 650)
-  },
-  // 页面卸载时清理验证码定时器，避免后台继续更新。
-  onUnload() { if (this.timer) clearInterval(this.timer) }
+      uni.showToast({ title: '\u767b\u5f55\u6210\u529f', icon: 'success' })
+      setTimeout(() => auth.finishLogin(), 450)
+    } catch (err) {
+      const detail = cloud.normalizeError(err)
+      console.error('user-auth failed detail:', detail, err)
+      toast((err && (err.errMsg || err.message)) || '\u540e\u7aef\u670d\u52a1\u6682\u65f6\u4e0d\u53ef\u7528')
+    } finally {
+      this.setData({ loading: false })
+    }
+  }
 }
 
 export default adaptPage(pageConfig)
 </script>
 
 <style>
-.login-page{min-height:100vh;background:linear-gradient(180deg,var(--orange-soft) 0,#f8f8fa 48%);padding-left:30rpx;padding-right:30rpx}.back{width:68rpx;height:68rpx;font-size:50rpx;display:flex;align-items:center}.login-art{height:330rpx;position:relative;display:flex;align-items:center;justify-content:center}.brand-mark{width:150rpx;height:150rpx;border-radius:48rpx;background:#1c1c1e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:72rpx;font-weight:800;box-shadow:0 20rpx 50rpx rgba(0,0,0,.2)}.art-orbit{position:absolute;width:72rpx;height:72rpx;border-radius:25rpx;background:#fff;display:flex;align-items:center;justify-content:center;font-size:36rpx;box-shadow:0 9rpx 25rpx rgba(100,60,40,.12)}.o1{left:100rpx;top:60rpx;transform:rotate(-10deg)}.o2{right:85rpx;top:95rpx;transform:rotate(10deg)}.o3{right:145rpx;bottom:20rpx}.login-card{background:#fff;border-radius:42rpx;padding:38rpx 32rpx;box-shadow:0 15rpx 55rpx rgba(50,45,65,.08)}.login-title,.login-sub{display:block}.login-title{font-size:44rpx;font-weight:800;letter-spacing:-1rpx}.login-sub{color:#999;font-size:24rpx;margin:10rpx 0 34rpx}.input-row{height:94rpx;border-radius:27rpx;background:#f5f5f7;display:flex;align-items:center;padding:0 22rpx;margin-bottom:18rpx}.input-row>text{padding-right:18rpx;margin-right:18rpx;border-right:1rpx solid #ddd}.input-row input{flex:1}.code-btn{color:var(--orange);font-size:23rpx;font-weight:650}.login-btn{margin-top:26rpx}.divider{display:flex;align-items:center;gap:18rpx;margin:30rpx 0;color:#bbb;font-size:21rpx}.divider view{height:1rpx;background:#eee;flex:1}.quick-btn{height:94rpx;border-radius:47rpx;background:#07c160;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}.quick-btn text{font-size:35rpx;margin-right:12rpx}.agreement{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:25rpx;color:#999;font-size:19rpx}.agreement button{font-size:19rpx;color:var(--orange)}.agree-box{width:30rpx;height:30rpx;border-radius:9rpx;border:1rpx solid #ccc;color:transparent!important;margin-right:8rpx}.agree-box.on{background:var(--orange);color:#fff!important;border-color:var(--orange)}
-
-/* Compact layout for common 667–844px phone heights */
-.login-page{padding:0 30rpx calc(28rpx + env(safe-area-inset-bottom));overflow-y:auto}
-.back{height:58rpx}
-.login-art{height:230rpx}
-.brand-mark{width:124rpx;height:124rpx;border-radius:40rpx;font-size:60rpx}
-.art-orbit{width:60rpx;height:60rpx;border-radius:20rpx;font-size:30rpx}
-.o1{top:28rpx}.o2{top:52rpx}.o3{bottom:4rpx}
-.login-card{border-radius:36rpx;padding:30rpx}
-.login-title{font-size:39rpx}.login-sub{font-size:22rpx;margin:8rpx 0 26rpx}
-.input-row{height:86rpx;border-radius:24rpx;padding:0 20rpx;margin-bottom:15rpx;overflow:hidden}
-.input-row input{min-width:0}.code-btn{flex-shrink:0;font-size:20rpx;padding-left:10rpx;white-space:nowrap}
-.login-btn{height:86rpx;margin-top:20rpx}.divider{margin:20rpx 0}
-.quick-btn{width:100%!important;max-width:none!important;height:86rpx}.agreement{font-size:18rpx;line-height:1.6;margin-top:20rpx}
-.agreement button{font-size:18rpx;white-space:nowrap}.agree-box{flex-shrink:0}
-.art-orbit image{width:38rpx;height:38rpx}
-.agree-box{display:flex;align-items:center;justify-content:center}
-.agree-box image{width:18rpx;height:18rpx;opacity:0}
-.agree-box.on image{opacity:1;filter:brightness(0) invert(1)}
-
-/* Login method hierarchy and compact form layout */
-.quick-btn{
-  gap:12rpx;
-  box-shadow:0 12rpx 26rpx rgba(7,193,96,.2);
-}
-.quick-btn text{font-size:27rpx;margin-right:0}
-.quick-mark{
-  width:38rpx;
-  height:38rpx;
-  border-radius:13rpx;
+.login-page{
+  --login-panel-bg:#fff;
+  min-height:100vh;
+  box-sizing:border-box;
+  position:relative;
+  overflow-y:auto;
+  padding:0 30rpx calc(24rpx + env(safe-area-inset-bottom));
   background:#fff;
-  color:#07a956;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:21rpx;
-  font-weight:800;
 }
-.phone-entry{
-  width:100%!important;
-  height:78rpx;
-  margin-top:18rpx;
-  border:2rpx solid #ececf0;
-  border-radius:25rpx;
-  color:#666;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:23rpx;
-  font-weight:650;
+.login-page button,
+.login-page button::after{
+  border:0;
+  box-shadow:none!important;
+  background:transparent;
 }
-.phone-login-panel{margin-top:24rpx}
-.phone-login-panel .input-row{margin-bottom:20rpx}
-.phone-row input{padding-left:2rpx}
-.code-row{padding-right:10rpx}
-.code-row input{min-width:0;padding-right:12rpx}
-.code-btn{
-  width:164rpx!important;
-  min-width:164rpx!important;
-  max-width:164rpx!important;
-  height:62rpx;
-  margin-left:auto;
+.login-page .login-page-back{
+  position:absolute!important;
+  left:20rpx!important;
+  top:calc(var(--login-status-height,20px) + 20rpx);
+  width:62rpx!important;
+  height:62rpx!important;
+  min-width:62rpx!important;
+  max-width:62rpx!important;
+  margin:0!important;
   padding:0!important;
-  border-radius:19rpx;
-  background:var(--orange-soft);
   display:flex;
   align-items:center;
   justify-content:center;
+  z-index:20;
+  border-radius:18rpx;
+  background:rgba(255,255,255,.58)!important;
+  backdrop-filter:blur(18rpx);
 }
-.login-btn{margin-top:4rpx}
-.login-switch{
+.login-page-back image{width:30rpx;height:30rpx;display:block}
+.login-hero{
+  height:calc(420rpx + var(--login-status-height,20px));
+  position:relative;
+  margin:calc(-1 * var(--login-status-height,20px)) -30rpx 0;
+  padding-top:var(--login-status-height,20px);
+  overflow:hidden;
+  border-radius:0 0 34rpx 34rpx;
+}
+.hero-bg{
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(circle at 15% 5%,rgba(255,255,255,.92),transparent 21%),
+    radial-gradient(circle at 88% 8%,rgba(255,143,82,.36),transparent 29%),
+    linear-gradient(135deg,#fff3ec 0%,#ffd4bc 47%,#fff8f2 100%);
+}
+.hero-bg::after{
+  content:'';
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  height:190rpx;
+  background:linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,.75));
+}
+.glass-piece{
+  position:absolute;
+  border-radius:34rpx;
+  background:linear-gradient(145deg,rgba(255,255,255,.78),rgba(255,255,255,.18));
+  border:1rpx solid rgba(255,255,255,.48);
+  box-shadow:0 22rpx 48rpx rgba(238,105,61,.13),inset 0 1rpx 0 rgba(255,255,255,.75);
+  transform:rotate(-18deg);
+}
+.p1{width:210rpx;height:88rpx;left:60rpx;top:86rpx}.p2{width:286rpx;height:116rpx;right:30rpx;top:66rpx}.p3{width:280rpx;height:108rpx;left:200rpx;top:205rpx}.p4{width:155rpx;height:70rpx;right:170rpx;top:270rpx}
+.hero-copy{
+  position:absolute;
+  left:64rpx;
+  bottom:126rpx;
+  display:flex;
+  flex-direction:column;
+  z-index:2;
+}
+.hello{
+  font-size:48rpx;
+  line-height:1;
+  font-weight:900;
+  color:#141414;
+  letter-spacing:-1rpx;
+  margin-bottom:20rpx;
+}
+.login-title{
+  font-size:43rpx;
+  line-height:1.08;
+  font-weight:900;
+  color:#151515;
+  letter-spacing:-1rpx;
+}
+.login-sub{
+  margin-top:12rpx;
+  font-size:22rpx;
+  color:rgba(30,30,30,.44);
+}
+.brand-mark{
+  position:absolute;
+  right:64rpx;
+  bottom:112rpx;
+  width:106rpx;
+  height:106rpx;
+  border-radius:32rpx;
+  overflow:hidden;
+  background:#1c1c1e;
+  box-shadow:0 18rpx 45rpx rgba(0,0,0,.14);
+  z-index:3;
+}
+.brand-mark image{width:100%;height:100%}
+.login-card{
+  position:relative;
+  z-index:4;
+  margin-top:-72rpx;
+  min-height:calc(100vh - 348rpx - var(--login-status-height,20px));
+  padding:0 56rpx 28rpx;
+  display:flex;
+  flex-direction:column;
+  background:transparent;
+}
+.login-card::before{
+  content:'';
+  position:absolute;
+  left:0;
+  right:0;
+  top:118rpx;
+  bottom:0;
+  border-radius:0 0 42rpx 42rpx;
+  background:var(--login-panel-bg);
+  box-shadow:0 22rpx 70rpx rgba(52,44,38,.06);
+  z-index:0;
+}
+.mode-tabs{
+  position:relative;
+  z-index:2;
+  height:126rpx;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  margin:0 -56rpx 70rpx;
+  align-items:stretch;
+  overflow:visible;
+}
+.mode-tabs::before{
+  content:'';
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  height:92rpx;
+  border-radius:42rpx 42rpx 0 0;
+  background:rgba(255,255,255,.22);
+  backdrop-filter:blur(18rpx);
+  z-index:0;
+}
+.mode-tab{
   width:100%!important;
-  height:58rpx;
-  margin-top:8rpx;
-  color:#999;
-  font-size:20rpx;
+  max-width:none!important;
+  min-width:0!important;
+  height:126rpx;
   display:flex;
   align-items:center;
   justify-content:center;
+  color:#8d8d8d;
+  font-size:30rpx;
+  font-weight:650;
+  position:relative;
+  z-index:1;
+  border-radius:0!important;
+  background:transparent!important;
 }
-.agreement{
+.login-page .mode-tab.active{
+  color:var(--orange);
+  background:var(--login-panel-bg)!important;
+  font-weight:850;
+  z-index:3;
+  box-shadow:0 -8rpx 26rpx rgba(60,55,50,.035)!important;
+}
+.login-page .login-active .mode-tab.active{
+  border-radius:46rpx 46rpx 0 0!important;
+}
+.login-page .register-active .mode-tab.active{
+  border-radius:46rpx 46rpx 0 0!important;
+}
+.mode-tab.active::before{
+  content:'';
+  position:absolute;
+  left:50%;
+  bottom:26rpx;
+  width:54rpx;
+  height:7rpx;
+  border-radius:999rpx;
+  background:var(--orange);
+  transform:translateX(-50%);
+  box-shadow:0 6rpx 14rpx rgba(238,105,61,.25);
+}
+.form-panel{
+  position:relative;
+  z-index:2;
+  display:flex;
+  flex-direction:column;
+  gap:26rpx;
+  animation:formFadeIn .34s cubic-bezier(.2,.8,.2,1) both;
+}
+.input-row{
+  height:92rpx;
+  border-radius:999rpx;
+  background:#fffaf6;
+  display:flex;
   align-items:center;
-  justify-content:flex-start;
-  flex-wrap:nowrap;
-  padding:0 6rpx;
+  padding:0 34rpx;
+  box-sizing:border-box;
+  overflow:hidden;
+  border:1rpx solid rgba(238,105,61,.12);
+  box-shadow:0 14rpx 32rpx rgba(238,105,61,.052);
+  animation:inputRiseIn .36s cubic-bezier(.2,.8,.2,1) both;
 }
-.agree-box{
+.input-row:nth-child(2){animation-delay:.035s}
+.input-row:nth-child(3){animation-delay:.07s}
+.confirm-row{animation-name:confirmExpandIn}
+.input-row:focus-within{
+  border-color:rgba(238,105,61,.45);
+  box-shadow:0 16rpx 36rpx rgba(238,105,61,.09);
+}
+.input-row input{
+  flex:1;
+  min-width:0;
+  height:92rpx;
+  font-size:28rpx;
+  color:#1e1e1e;
+}
+.password-row input{padding-right:12rpx}
+.eye-btn{
+  width:58rpx!important;
+  height:58rpx!important;
+  min-width:58rpx!important;
+  max-width:58rpx!important;
+  flex:0 0 58rpx!important;
+  padding:0!important;
+  margin:0 -12rpx 0 0!important;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:50%!important;
+}
+.eye-btn image{width:36rpx;height:36rpx;opacity:.5}
+.login-page .login-btn{
+  position:relative;
+  z-index:2;
+  width:100%!important;
+  height:92rpx;
+  margin-top:44rpx;
+  border-radius:999rpx!important;
+  background:linear-gradient(135deg,var(--orange),#f05b35)!important;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:31rpx;
+  font-weight:850;
+  box-shadow:0 18rpx 38rpx rgba(238,105,61,.22)!important;
+}
+.login-btn[disabled]{opacity:.72}
+.agreement{
+  position:relative;
+  z-index:2;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:nowrap;
+  padding:0 0 8rpx;
+  margin-top:auto;
+  color:#333;
+  font-size:22rpx;
+  min-height:118rpx;
+}
+.login-page .agree-box{
   width:34rpx!important;
+  height:34rpx!important;
   min-width:34rpx!important;
   max-width:34rpx!important;
-  height:34rpx!important;
-  min-height:34rpx!important;
   flex:0 0 34rpx!important;
   padding:0!important;
   margin:0 12rpx 0 0!important;
-  border-radius:10rpx;
-}
-.agree-box image{width:19rpx;height:19rpx}
-.agreement-copy{
-  flex:1;
-  min-width:0;
-  display:flex;
+  border-radius:50%!important;
+  border:3rpx solid rgba(238,105,61,.78)!important;
+  background:#fff!important;
+  display:flex!important;
   align-items:center;
-  flex-wrap:nowrap;
-  white-space:nowrap;
-  line-height:1.7;
+  justify-content:center;
+  box-sizing:border-box;
 }
-.agreement-copy text{
-  flex-shrink:0;
-  font-size:20rpx;
-  line-height:34rpx;
+.agree-box image{width:18rpx;height:18rpx;opacity:0}.login-page .agree-box.on{background:var(--orange)!important;border-color:var(--orange)!important}.agree-box.on image{opacity:1;filter:brightness(0) invert(1)}
+.agreement-copy{min-width:0;display:flex;align-items:center;flex-wrap:nowrap;white-space:nowrap;line-height:36rpx}
+.agreement-copy text{flex-shrink:0;font-size:22rpx;line-height:36rpx;color:#333}
+.agreement-link{font-size:22rpx;color:var(--orange);font-weight:700;white-space:nowrap;padding:0!important;margin:0 2rpx!important;line-height:36rpx}
+@keyframes formFadeIn{
+  from{opacity:.72;transform:translateY(16rpx)}
+  to{opacity:1;transform:translateY(0)}
 }
-.agreement-link{color:var(--orange);font-weight:600}
-
-.login-page{position:relative}
-.back{justify-content:center}
-.login-page-back{
-  position:absolute!important;
-  left:8rpx!important;
-  top:calc(var(--login-status-height, 20px) + 8rpx);
-  width:68rpx!important;
-  min-width:68rpx!important;
-  max-width:68rpx!important;
-  margin:0!important;
-  padding:0!important;
-  z-index:5;
-}
-.back image{width:30rpx;height:30rpx;display:block}
-
-.code-btn{
-  border-radius:999rpx;
-}
-
-/* Smooth transition between quick and phone login methods. */
-.login-method-stage{
-  position:relative;
-}
-.login-method-panel{
-  max-height:0;
-  margin-top:0;
-  overflow:hidden;
-  opacity:0;
-  visibility:hidden;
-  pointer-events:none;
-  transform:translateY(14rpx) scale(.985);
-  transform-origin:top center;
-  transition:
-    max-height .38s cubic-bezier(.22,.61,.36,1),
-    opacity .22s ease,
-    transform .34s cubic-bezier(.22,.61,.36,1),
-    margin-top .34s ease,
-    visibility 0s linear .38s;
-}
-.login-method-stage.quick-mode .quick-method,
-.login-method-stage.phone-mode .phone-login-panel{
-  opacity:1;
-  visibility:visible;
-  pointer-events:auto;
-  transform:translateY(0) scale(1);
-  transition:
-    max-height .42s cubic-bezier(.22,.61,.36,1),
-    opacity .28s ease .08s,
-    transform .38s cubic-bezier(.22,.61,.36,1),
-    margin-top .34s ease,
-    visibility 0s;
-}
-.login-method-stage.quick-mode .quick-method{
-  max-height:190rpx;
-}
-.login-method-stage.phone-mode .phone-login-panel{
-  max-height:440rpx;
-  margin-top:4rpx;
-  animation:phone-panel-enter .34s cubic-bezier(.22,.61,.36,1) both;
-}
-.quick-method{
-  display:flex;
-  flex-direction:column;
-}
-
-/* Capsule controls for phone login. */
-.phone-entry,
-.phone-login-panel .input-row{
-  border-radius:999rpx!important;
-}
-.phone-login-panel .input-row{
-  padding-left:28rpx;
-  padding-right:10rpx;
-}
-
-.brand-mark{
-  overflow:hidden;
-  padding:0;
-  background:#171719;
-}
-.brand-mark image{
-  width:100%;
-  height:100%;
-  display:block;
-}
-
-@keyframes phone-panel-enter{
-  from{opacity:0;transform:translateY(14rpx) scale(.985)}
+@keyframes inputRiseIn{
+  from{opacity:0;transform:translateY(22rpx) scale(.985)}
   to{opacity:1;transform:translateY(0) scale(1)}
 }
-
-/* 协议名称是真实可点击按钮，同时保持与说明文字在同一行。 */
-.agreement-link{
-  width:auto!important;
-  min-width:0!important;
-  max-width:none!important;
-  height:34rpx!important;
-  min-height:34rpx!important;
-  padding:0!important;
-  margin:0!important;
-  flex:0 0 auto!important;
-  display:inline-flex;
-  align-items:center;
-  color:var(--orange);
-  font-size:20rpx!important;
-  font-weight:600;
-  line-height:34rpx!important;
+@keyframes confirmExpandIn{
+  from{opacity:0;transform:translateY(-10rpx) scaleY(.88)}
+  to{opacity:1;transform:translateY(0) scaleY(1)}
 }
-
 </style>

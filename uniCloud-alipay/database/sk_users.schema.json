@@ -1,0 +1,51 @@
+{
+  "bsonType": "object",
+  "required": ["username", "passwordHash", "salt"],
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": {
+      "description": "用户ID"
+    },
+    "username": {
+      "bsonType": "string",
+      "description": "用户自定义用户名"
+    },
+    "nickname": {
+      "bsonType": "string",
+      "description": "用户昵称"
+    },
+    "phone": {
+      "bsonType": "string",
+      "description": "预留手机号字段"
+    },
+    "avatar": {
+      "bsonType": "string",
+      "description": "头像路径"
+    },
+    "passwordHash": {
+      "bsonType": "string",
+      "description": "加盐后的密码摘要"
+    },
+    "salt": {
+      "bsonType": "string",
+      "description": "密码盐值"
+    },
+    "createdAt": {
+      "bsonType": "long",
+      "description": "注册时间"
+    },
+    "updatedAt": {
+      "bsonType": "long",
+      "description": "更新时间"
+    },
+    "lastLoginAt": {
+      "bsonType": "long",
+      "description": "最近登录时间"
+    }
+  }
+}

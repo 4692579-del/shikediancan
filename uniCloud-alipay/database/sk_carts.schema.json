@@ -1,0 +1,31 @@
+{
+  "bsonType": "object",
+  "required": ["userId", "items"],
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": {
+      "description": "购物车记录ID"
+    },
+    "userId": {
+      "bsonType": "string",
+      "description": "用户ID"
+    },
+    "items": {
+      "bsonType": "array",
+      "description": "购物车商品快照"
+    },
+    "createdAt": {
+      "bsonType": "long",
+      "description": "创建时间"
+    },
+    "updatedAt": {
+      "bsonType": "long",
+      "description": "更新时间"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "order-service",
+  "version": "1.0.0",
+  "description": "食刻点餐购物车、订单与模拟支付状态云函数",
+  "main": "index.js",
+  "dependencies": {}
+}

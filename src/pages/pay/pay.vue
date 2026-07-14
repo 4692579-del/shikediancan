@@ -1,22 +1,37 @@
-<template>
+﻿<template>
 <view class="pay-page" :style="`${globalThemeStyle};padding-top:${statusHeight}px`">
-  <view class="nav-row"><button hover-class="none" class="nav-back page-back" @tap="back"><image src="/static/assets/icons/back.svg" mode="aspectFit" /></button><text class="nav-title">收银台</text><view class="nav-back"></view></view>
-  <view class="pay-amount"><text>{{businessType === 'membership' || businessType === 'walletRecharge' ? membershipPlanName : '支付金额'}}</text><view><text>¥</text>{{amount}}</view><text>{{expired ? (businessType === 'membership' ? '会员支付已失效' : businessType === 'walletRecharge' ? '充值订单已失效' : '订单已取消') : '请在 ' + countdown + ' 内完成支付'}}</text></view>
+  <view class="nav-row">
+    <button hover-class="none" class="nav-back page-back" @tap="back"><image src="/static/assets/icons/back.svg" mode="aspectFit" /></button>
+    <text class="nav-title">收银台</text>
+    <view class="nav-back"></view>
+  </view>
+
+  <view class="pay-amount">
+    <text>{{ businessType === 'membership' || businessType === 'walletRecharge' ? membershipPlanName : '支付金额' }}</text>
+    <view><text>¥</text>{{ amount }}</view>
+    <text>{{ expired ? expiredText() : '请在 ' + countdown + ' 内完成支付' }}</text>
+  </view>
+
   <view class="method-card card">
     <text class="method-title">选择支付方式</text>
-    <button v-for="(item, index) in methods" :key="item.id" hover-class="none" class="method-row" :data-id="item.id" @tap="selectMethod">
-      <view class="pay-icon" :style="`background:${item.color}`"><image :src="item.icon" mode="aspectFit" /></view><view class="method-copy"><text>{{item.name}}</text><text>{{item.desc}}</text></view><view :class="`radio ${method === item.id ? 'on' : ''}`"></view>
+    <button v-for="item in methods" :key="item.id" hover-class="none" class="method-row" :data-id="item.id" @tap="selectMethod">
+      <view class="pay-icon" :style="`background:${item.color}`"><image :src="item.icon" mode="aspectFit" /></view>
+      <view class="method-copy"><text>{{ item.name }}</text><text>{{ item.desc }}</text></view>
+      <view :class="`radio ${method === item.id ? 'on' : ''}`"></view>
     </button>
     <button v-if="walletOpened && !showMoreMethods" hover-class="none" class="more-methods" @tap="toggleMoreMethods"><text>展开更多支付方式</text><view class="more-arrow"></view></button>
     <view v-if="walletOpened && showMoreMethods" class="wallet-promo"><text>惠</text><text>使用食刻钱包支付最高立减30元</text></view>
     <button v-if="walletOpened && showMoreMethods" hover-class="none" class="method-row wallet-row" :data-id="walletMethod.id" @tap="selectMethod">
-      <view class="pay-icon" :style="`background:${walletMethod.color}`"><image :src="walletMethod.icon" mode="aspectFit" /></view><view class="method-copy"><text>{{walletMethod.name}}</text><text>{{walletMethod.desc}}</text></view><view :class="`radio ${method === walletMethod.id ? 'on' : ''}`"></view>
+      <view class="pay-icon" :style="`background:${walletMethod.color}`"><image :src="walletMethod.icon" mode="aspectFit" /></view>
+      <view class="method-copy"><text>{{ walletMethod.name }}</text><text>{{ walletMethod.desc }}</text></view>
+      <view :class="`radio ${method === walletMethod.id ? 'on' : ''}`"></view>
     </button>
   </view>
-  <view v-if="method === 'wallet'" class="wallet-saving"><text>钱包优惠</text><text>-¥{{walletDiscount}}</text></view>
-  <button hover-class="none" :class="`primary-btn pay-btn ${expired ? 'disabled' : ''}`" :disabled="expired" @tap="pay">{{expired ? (businessType === 'membership' || businessType === 'walletRecharge' ? '支付已失效' : '订单已取消') : '确认支付 ¥' + amount}}</button>
 
-  <!-- 支付密码面板：使用页面内数字键盘还原常见移动支付的输入过程。 -->
+  <view v-if="method === 'wallet'" class="wallet-saving"><text>钱包优惠</text><text>-¥{{ walletDiscount }}</text></view>
+  <button hover-class="none" :class="`primary-btn pay-btn ${expired ? 'disabled' : ''}`" :disabled="expired" @tap="pay">{{ expired ? expiredButtonText() : '确认支付 ¥' + amount }}</button>
+
+  <!-- 支付密码面板：模拟真实支付输入流程，输入任意 6 位数字即可完成支付。 -->
   <view v-if="showPasswordPanel" class="password-mask" @touchmove.stop="noop">
     <view class="password-backdrop"></view>
     <view class="password-panel" @tap.stop="noop">
@@ -28,28 +43,16 @@
       <view class="password-pay-body">
         <view :class="`password-brand method-${method}`">
           <view><image :src="method === 'wallet' ? walletMethod.icon : '/static/assets/icons/payment.svg'" mode="aspectFit" /></view>
-          <text>{{method === 'quick' ? '微信支付' : method === 'alipay' ? '支付宝支付' : '食刻钱包支付'}}</text>
+          <text>{{ method === 'quick' ? '微信支付' : method === 'alipay' ? '支付宝支付' : '食刻钱包支付' }}</text>
         </view>
-        <view class="password-amount"><text>¥</text><text>{{amount}}</text></view>
-        <text class="password-order-name">{{businessType === 'membership' || businessType === 'walletRecharge' ? membershipPlanName : '食刻·品质厨房'}}</text>
+        <view class="password-amount"><text>¥</text><text>{{ amount }}</text></view>
+        <text class="password-order-name">{{ businessType === 'membership' || businessType === 'walletRecharge' ? membershipPlanName : '食刻·品质厨房' }}</text>
         <view class="password-boxes">
-          <view v-for="(item, index) in passwordSlots" :key="item" class="password-box">
-            <view v-if="payPassword.length > index" class="password-dot"></view>
-          </view>
+          <view v-for="item in passwordSlots" :key="item" class="password-box"><view v-if="payPassword.length > item" class="password-dot"></view></view>
         </view>
       </view>
-
-      <!-- 数字键盘仅记录六位数字，删除键用于逐位撤销。 -->
       <view class="pay-keyboard">
-        <button hover-class="none" data-digit="1" @tap.stop="inputPayDigit">1</button>
-        <button hover-class="none" data-digit="2" @tap.stop="inputPayDigit">2</button>
-        <button hover-class="none" data-digit="3" @tap.stop="inputPayDigit">3</button>
-        <button hover-class="none" data-digit="4" @tap.stop="inputPayDigit">4</button>
-        <button hover-class="none" data-digit="5" @tap.stop="inputPayDigit">5</button>
-        <button hover-class="none" data-digit="6" @tap.stop="inputPayDigit">6</button>
-        <button hover-class="none" data-digit="7" @tap.stop="inputPayDigit">7</button>
-        <button hover-class="none" data-digit="8" @tap.stop="inputPayDigit">8</button>
-        <button hover-class="none" data-digit="9" @tap.stop="inputPayDigit">9</button>
+        <button v-for="digit in [1,2,3,4,5,6,7,8,9]" :key="digit" hover-class="none" :data-digit="digit" @tap.stop="inputPayDigit">{{ digit }}</button>
         <view class="keyboard-blank"></view>
         <button hover-class="none" data-digit="0" @tap.stop="inputPayDigit">0</button>
         <button hover-class="none" class="keyboard-delete" @tap.stop="deletePayDigit"><view class="delete-key-shape"><text>×</text></view></button>
@@ -57,13 +60,12 @@
     </view>
   </view>
 
-  <view v-if="paying" class="paying-mask"><view class="spinner"></view><text>{{method === 'quick' ? '第三方平台' : method === 'alipay' ? '支付宝' : '食刻钱包'}}支付处理中…</text><text>请勿关闭页面</text></view>
+  <view v-if="paying" class="paying-mask"><view class="spinner"></view><text>{{ method === 'quick' ? '微信' : method === 'alipay' ? '支付宝' : '食刻钱包' }}支付处理中…</text><text>请勿关闭页面</text></view>
 </view>
 </template>
-
 <script>
 import adaptPage from '@/utils/page-adapter.js'
-// 收银台页：统一处理餐品订单、会员订单与钱包充值的模拟支付流程。
+// 鏀堕摱鍙伴〉锛氱粺涓€澶勭悊椁愬搧璁㈠崟銆佷細鍛樿鍗曚笌閽卞寘鍏呭€肩殑妯℃嫙鏀粯娴佺▼銆?
 
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
@@ -71,13 +73,34 @@ import paymentCountdown from '../../utils/payment-countdown.js'
 import wallet from '../../utils/wallet.js'
 import walletDiscount from '../../utils/wallet-discount.js'
 import membership from '../../utils/membership.js'
+import orderBackend from '../../utils/order-backend.js'
 const pageConfig = {
-  data: { statusHeight: 20, amount: '0.00', originalAmount: '0.00', walletDiscount: '0.00', existingId: '', orderId: '', businessType: 'food', membershipPlanName: '', method: 'quick', paying: false, expired: false, countdown: '15:00', walletOpened: false, showMoreMethods: false, showPasswordPanel: false, payPassword: '', passwordSlots: [0, 1, 2, 3, 4, 5], methods: [
-    { id: 'quick', name: '微信支付', desc: '推荐使用', icon: '/static/assets/icons/payment.svg', color: '#07c160' },
-    { id: 'alipay', name: '支付宝支付', desc: '安全快捷', icon: '/static/assets/icons/payment.svg', color: '#1677ff' }
-  ], walletMethod: { id: 'wallet', name: '食刻钱包支付', desc: '便捷安全支付', icon: '/static/assets/icons/wallet.svg', color: '#ff6533' } },
-  // 根据 type 区分餐品、会员和钱包充值，并加载对应待支付记录。
-  onLoad(options) {
+  data: {
+    statusHeight: 20,
+    amount: '0.00',
+    originalAmount: '0.00',
+    walletDiscount: '0.00',
+    existingId: '',
+    orderId: '',
+    businessType: 'food',
+    membershipPlanName: '',
+    method: 'quick',
+    paying: false,
+    expired: false,
+    countdown: '15:00',
+    walletOpened: false,
+    showMoreMethods: false,
+    showPasswordPanel: false,
+    payPassword: '',
+    passwordSlots: [0, 1, 2, 3, 4, 5],
+    methods: [
+      { id: 'quick', name: '微信支付', desc: '推荐使用', icon: '/static/assets/icons/payment.svg', color: '#07c160' },
+      { id: 'alipay', name: '支付宝支付', desc: '安全快捷', icon: '/static/assets/icons/payment.svg', color: '#1677ff' }
+    ],
+    walletMethod: { id: 'wallet', name: '食刻钱包支付', desc: '便捷安全支付', icon: '/static/assets/icons/wallet.svg', color: '#ff6533' }
+  },
+  // 鏍规嵁 type 鍖哄垎椁愬搧銆佷細鍛樺拰閽卞寘鍏呭€硷紝骞跺姞杞藉搴斿緟鏀粯璁板綍銆?
+  async onLoad(options) {
     const target = auth.buildUrl('/pages/pay/pay', options)
     if (!auth.guardPage(target)) return
     if (options.type === 'walletRecharge') {
@@ -131,13 +154,21 @@ const pageConfig = {
       return
     }
     this.setData({ statusHeight: getApp().globalData.statusBarHeight, amount: options.amount || '0.00', existingId: options.existing || '' })
-    const order = this.createOrder('unpaid')
-    if (!order) return
-    const originalAmount = Number(order.originalTotal || order.total || this.amount)
-    this.setData({ orderId: order.id, originalAmount: originalAmount.toFixed(2), amount: originalAmount.toFixed(2), walletOpened: wallet.isOpened() })
-    this.startCountdown()
+    try {
+      let order = options.existing ? await orderBackend.getOrder(options.existing) : null
+      if (!order) order = await orderBackend.createOrder(store.get('sk_order_draft', {}))
+      const originalAmount = Number(order.originalTotal || order.total || this.amount)
+      const localOrders = store.get('sk_orders', [])
+      store.set('sk_orders', [order, ...localOrders.filter(item => item.id !== order.id)])
+      this.setData({ orderId: order.id, originalAmount: originalAmount.toFixed(2), amount: originalAmount.toFixed(2), walletOpened: wallet.isOpened() })
+      this.startCountdown()
+    } catch (err) {
+      console.error('load backend order failed', err)
+      uni.showToast({ title: '订单加载失败，请重试', icon: 'none' })
+      setTimeout(() => uni.redirectTo({ url: '/pages/orders/orders' }), 600)
+    }
   },
-  // 页面恢复时重新检查钱包开通状态与支付倒计时。
+  // 椤甸潰鎭㈠鏃堕噸鏂版鏌ラ挶鍖呭紑閫氱姸鎬佷笌鏀粯鍊掕鏃躲€?
   onShow() {
     if (this.businessType === 'walletRecharge') {
       this.setData({ walletOpened: false, showMoreMethods: false, method: this.method === 'alipay' ? 'alipay' : 'quick' })
@@ -163,8 +194,18 @@ const pageConfig = {
     this.stopCountdown()
     clearTimeout(this.passwordSubmitTimer)
   },
+  expiredText() {
+    if (this.businessType === 'membership') return '会员支付已失效'
+    if (this.businessType === 'walletRecharge') return '充值订单已失效'
+    return '订单已取消'
+  },
+  expiredButtonText() {
+    return this.businessType === 'membership' || this.businessType === 'walletRecharge'
+      ? '支付已失效'
+      : '订单已取消'
+  },
   back() {
-    // 密码面板打开时，返回操作只关闭面板，避免误退出整个收银台。
+    // 瀵嗙爜闈㈡澘鎵撳紑鏃讹紝杩斿洖鎿嶄綔鍙叧闂潰鏉匡紝閬垮厤璇€€鍑烘暣涓敹閾跺彴銆?
     if (this.showPasswordPanel) {
       this.closePasswordPanel()
       return
@@ -183,7 +224,7 @@ const pageConfig = {
       }
     })
   },
-  // 切换支付方式；选择钱包时计算本单随机立减。
+  // 鍒囨崲鏀粯鏂瑰紡锛涢€夋嫨閽卞寘鏃惰绠楁湰鍗曢殢鏈虹珛鍑忋€?
   selectMethod(e) {
     const method = e.currentTarget.dataset.id
     if (method === 'wallet') {
@@ -199,10 +240,10 @@ const pageConfig = {
     if (!this.walletOpened) return
     this.setData({ showMoreMethods: true })
   },
-  // 支付前再次校验订单、会员等级、钱包状态和余额。
+  // 鏀粯鍓嶅啀娆℃牎楠岃鍗曘€佷細鍛樼瓑绾с€侀挶鍖呯姸鎬佸拰浣欓銆?
   pay() {
     if (this.paying || this.expired) return
-    // 拉起密码面板前再次校验订单、会员状态和钱包余额，防止失效订单继续支付。
+    // 鎷夎捣瀵嗙爜闈㈡澘鍓嶅啀娆℃牎楠岃鍗曘€佷細鍛樼姸鎬佸拰閽卞寘浣欓锛岄槻姝㈠け鏁堣鍗曠户缁敮浠樸€?
     const current = this.getCurrentPaymentOrder()
     if (!current || current.status !== 'unpaid') {
       this.handleExpired()
@@ -221,7 +262,7 @@ const pageConfig = {
       return uni.showToast({ title: '钱包余额不足，请先充值', icon: 'none' })
     }
 
-    // 校验通过后只展示支付密码面板，真正的支付逻辑在密码输入满六位后执行。
+    // 鏍￠獙閫氳繃鍚庡彧灞曠ず鏀粯瀵嗙爜闈㈡澘锛岀湡姝ｇ殑鏀粯閫昏緫鍦ㄥ瘑鐮佽緭鍏ユ弧鍏綅鍚庢墽琛屻€?
     this.setData({ showPasswordPanel: true, payPassword: '' })
   },
 
@@ -233,7 +274,7 @@ const pageConfig = {
 
   noop() {},
 
-  // 模拟真实六位支付密码键盘；任意六位数字均可通过。
+  // 妯℃嫙鐪熷疄鍏綅鏀粯瀵嗙爜閿洏锛涗换鎰忓叚浣嶆暟瀛楀潎鍙€氳繃銆?
   inputPayDigit(e) {
     if (this.paying) return
     const digit = String(e.currentTarget.dataset.digit || '')
@@ -241,7 +282,7 @@ const pageConfig = {
     const payPassword = `${this.payPassword}${digit}`
     this.setData({ payPassword })
 
-    // 任意六位数字均可通过；稍作停顿以完整呈现最后一位密码圆点。
+    // 浠绘剰鍏綅鏁板瓧鍧囧彲閫氳繃锛涚◢浣滃仠椤夸互瀹屾暣鍛堢幇鏈€鍚庝竴浣嶅瘑鐮佸渾鐐广€?
     if (payPassword.length === 6) {
       clearTimeout(this.passwordSubmitTimer)
       this.passwordSubmitTimer = setTimeout(() => this.confirmPayPassword(), 180)
@@ -256,14 +297,14 @@ const pageConfig = {
   confirmPayPassword() {
     if (this.payPassword.length !== 6 || this.paying) return
 
-    // 密码完成后关闭输入面板，进入统一的支付处理中状态。
+    // 瀵嗙爜瀹屾垚鍚庡叧闂緭鍏ラ潰鏉匡紝杩涘叆缁熶竴鐨勬敮浠樺鐞嗕腑鐘舵€併€?
     this.setData({ showPasswordPanel: false, payPassword: '', paying: true })
     this.processPayment()
   },
 
-  // 按业务类型完成充值、会员开通或餐品订单，并更新本地状态。
+  // 鎸変笟鍔＄被鍨嬪畬鎴愬厖鍊笺€佷細鍛樺紑閫氭垨椁愬搧璁㈠崟锛屽苟鏇存柊鏈湴鐘舵€併€?
   processPayment() {
-    // 支付处理前做最后一次状态校验，解决输入密码期间订单超时的问题。
+    // 鏀粯澶勭悊鍓嶅仛鏈€鍚庝竴娆＄姸鎬佹牎楠岋紝瑙ｅ喅杈撳叆瀵嗙爜鏈熼棿璁㈠崟瓒呮椂鐨勯棶棰樸€?
     const current = this.getCurrentPaymentOrder()
     if (!current || current.status !== 'unpaid') {
       this.setData({ paying: false })
@@ -274,13 +315,13 @@ const pageConfig = {
       const validation = membership.canPayPayment(current)
       if (!validation.allowed) {
         this.setData({ paying: false })
-        uni.showModal({ title: '无法支付', content: validation.message, showCancel: false })
+        uni.showModal({ title: '鏃犳硶鏀粯', content: validation.message, showCancel: false })
         return
       }
     }
 
     this.setData({ paying: true })
-    setTimeout(() => {
+    setTimeout(async () => {
       if (this.businessType === 'walletRecharge') {
         const recharge = wallet.completeRechargeOrder(this.orderId, this.method)
         if (!recharge) {
@@ -309,15 +350,28 @@ const pageConfig = {
         uni.redirectTo({ url: `/pages/pay-result/pay-result?type=membership&id=${this.orderId}&method=${this.method}` })
         return
       }
-      const order = this.createOrder('making')
+      let order = null
+      try {
+        order = await orderBackend.payOrder(this.orderId, {
+          payMethod: this.method,
+          total: Number(this.amount),
+          walletDiscount: Number(this.walletDiscount)
+        })
+      } catch (err) {
+        console.error('backend pay failed', err)
+        this.setData({ paying: false })
+        uni.showToast({ title: '支付失败，请重试', icon: 'none' })
+        return
+      }
       if (!order || order.status !== 'making') {
         this.setData({ paying: false })
-        this.handleExpired()
+        this.handleExpired(order)
         return
       }
       this.stopCountdown()
+      const localOrders = store.get('sk_orders', [])
+      store.set('sk_orders', [order, ...localOrders.filter(item => item.id !== order.id)])
       if (this.method === 'wallet') wallet.pay(Number(order.total), order.id)
-      store.set('sk_cart', store.getCart().filter(item => !item.checked))
       if (order.coupon) {
         store.set('sk_coupons', store.get('sk_coupons', []).map(item => item.id === order.coupon.id ? { ...item, used: true } : item))
         store.set('sk_selected_coupon', null)
@@ -325,7 +379,7 @@ const pageConfig = {
       uni.redirectTo({ url: `/pages/pay-result/pay-result?id=${order.id}&method=${this.method}` })
     }, 500)
   },
-  // 创建新订单或更新已有订单，保证同一订单不会被重复创建。
+  // 鍒涘缓鏂拌鍗曟垨鏇存柊宸叉湁璁㈠崟锛屼繚璇佸悓涓€璁㈠崟涓嶄細琚噸澶嶅垱寤恒€?
   createOrder(status) {
     const draft = store.get('sk_order_draft', {})
     const orders = paymentCountdown.normalizeOrders()
@@ -359,13 +413,13 @@ const pageConfig = {
       paymentDeadline: status === 'unpaid' ? Date.now() + paymentCountdown.PAYMENT_DURATION : null,
       originalTotal: Number(draft.total || this.amount),
       payMethod: this.method,
-      shopName: '食刻·品质厨房'
+      shopName: '椋熷埢路鍝佽川鍘ㄦ埧'
     }
     store.set('sk_orders', [order, ...orders])
     this.setData({ orderId: id })
     return order
   },
-  // 优惠首次生成后写入订单，保证切换支付方式时金额不反复变化。
+  // 浼樻儬棣栨鐢熸垚鍚庡啓鍏ヨ鍗曪紝淇濊瘉鍒囨崲鏀粯鏂瑰紡鏃堕噾棰濅笉鍙嶅鍙樺寲銆?
   ensureWalletDiscount() {
     if (this.businessType === 'membership') {
       const payment = membership.getPayment(this.orderId)
@@ -390,7 +444,7 @@ const pageConfig = {
     if (this.businessType === 'walletRecharge') return wallet.getRechargeOrder(this.orderId)
     return paymentCountdown.getOrder(this.orderId)
   },
-  // 启动一秒一次的支付倒计时，并在页面隐藏时停止。
+  // 鍚姩涓€绉掍竴娆＄殑鏀粯鍊掕鏃讹紝骞跺湪椤甸潰闅愯棌鏃跺仠姝€?
   startCountdown() {
     this.stopCountdown()
     this.updateCountdown()
@@ -410,13 +464,13 @@ const pageConfig = {
     }
     this.setData({ countdown: paymentCountdown.formatRemaining(order.paymentDeadline), expired: false })
   },
-  // 订单超时后关闭密码面板并禁止继续支付，不主动跳转或弹窗。
+  // 璁㈠崟瓒呮椂鍚庡叧闂瘑鐮侀潰鏉垮苟绂佹缁х画鏀粯锛屼笉涓诲姩璺宠浆鎴栧脊绐椼€?
   handleExpired(order) {
     this.stopCountdown()
     const expiredOrder = order || this.getCurrentPaymentOrder()
     if (expiredOrder && expiredOrder.status === 'making') return
     if (this.expired) return
-    // 倒计时结束时同步关闭密码面板，避免用户继续输入已失效订单。
+    // 鍊掕鏃剁粨鏉熸椂鍚屾鍏抽棴瀵嗙爜闈㈡澘锛岄伩鍏嶇敤鎴风户缁緭鍏ュ凡澶辨晥璁㈠崟銆?
     clearTimeout(this.passwordSubmitTimer)
     this.setData({ expired: true, countdown: '00:00', paying: false, showPasswordPanel: false, payPassword: '' })
   }
@@ -490,12 +544,12 @@ export default adaptPage(pageConfig)
 .method-row{width:100%!important;max-width:none!important}.pay-btn{width:auto!important}
 .pay-btn.disabled{background:#c8c8cc;box-shadow:none;color:#fff}
 
-/* 支付方式名称和说明紧凑排列，并与左侧图标的视觉中心对齐。 */
+/* 鏀粯鏂瑰紡鍚嶇О鍜岃鏄庣揣鍑戞帓鍒楋紝骞朵笌宸︿晶鍥炬爣鐨勮瑙変腑蹇冨榻愩€?*/
 .method-row{height:108rpx!important;padding:0!important}
 .method-copy{display:flex;flex-direction:column;justify-content:center;gap:4rpx}
 .method-copy text:last-child{margin-top:0!important}
 
-/* 支付方式名称和说明作为一个整体与图标居中，小字贴近标题但不拥挤。 */
+/* 鏀粯鏂瑰紡鍚嶇О鍜岃鏄庝綔涓轰竴涓暣浣撲笌鍥炬爣灞呬腑锛屽皬瀛楄创杩戞爣棰樹絾涓嶆嫢鎸ゃ€?*/
 .method-row,
 uni-button.method-row{
   height:96rpx!important;
@@ -539,7 +593,7 @@ uni-button.method-row{
   flex:0 0 40rpx!important;
 }
 
-/* 支付方式和展开项使用卡片自身的留白，不使用 H5 原生按钮默认灰底。 */
+/* 鏀粯鏂瑰紡鍜屽睍寮€椤逛娇鐢ㄥ崱鐗囪嚜韬殑鐣欑櫧锛屼笉浣跨敤 H5 鍘熺敓鎸夐挳榛樿鐏板簳銆?*/
 .method-row,
 .more-methods{
   background:transparent!important;
@@ -548,7 +602,7 @@ uni-button.method-row{
   box-shadow:none!important;
 }
 
-/* 支付方式之间略微拉开，形成更舒服的卡片内呼吸感。 */
+/* 鏀粯鏂瑰紡涔嬮棿鐣ュ井鎷夊紑锛屽舰鎴愭洿鑸掓湇鐨勫崱鐗囧唴鍛煎惛鎰熴€?*/
 .method-row,
 uni-button.method-row{
   height:112rpx!important;
@@ -563,7 +617,7 @@ uni-button.method-row{
   min-height:48rpx!important;
 }
 
-/* 支付密码遮罩与底部面板，使用独立层级避免被收银台按钮覆盖。 */
+/* 鏀粯瀵嗙爜閬僵涓庡簳閮ㄩ潰鏉匡紝浣跨敤鐙珛灞傜骇閬垮厤琚敹閾跺彴鎸夐挳瑕嗙洊銆?*/
 .password-mask{position:fixed;inset:0;z-index:140;display:flex;align-items:flex-end}
 .password-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.48);animation:passwordFadeIn .2s ease both}
 .password-panel{
@@ -626,7 +680,7 @@ uni-button.method-row{
 .password-box:not(:last-child)::after{content:"";position:absolute;top:0;right:0;bottom:0;width:1rpx;background:#dedee2}
 .password-dot{width:22rpx;height:22rpx;border-radius:50%;background:#171719;animation:passwordDotIn .12s ease both}
 
-/* 自定义数字键盘沿用系统支付键盘的三列结构。 */
+/* 鑷畾涔夋暟瀛楅敭鐩樻部鐢ㄧ郴缁熸敮浠橀敭鐩樼殑涓夊垪缁撴瀯銆?*/
 .pay-keyboard{
   display:grid;
   grid-template-columns:repeat(3,1fr);
@@ -677,3 +731,4 @@ uni-button.method-row{
 @keyframes passwordDotIn{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
 
 </style>
+

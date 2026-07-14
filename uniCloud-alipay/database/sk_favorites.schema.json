@@ -1,0 +1,35 @@
+{
+  "bsonType": "object",
+  "required": ["userId", "foodId", "food"],
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": {
+      "description": "收藏记录ID"
+    },
+    "userId": {
+      "bsonType": "string",
+      "description": "用户ID"
+    },
+    "foodId": {
+      "bsonType": "int",
+      "description": "商品ID"
+    },
+    "food": {
+      "bsonType": "object",
+      "description": "收藏商品快照"
+    },
+    "createdAt": {
+      "bsonType": "long",
+      "description": "收藏时间"
+    },
+    "updatedAt": {
+      "bsonType": "long",
+      "description": "更新时间"
+    }
+  }
+}
