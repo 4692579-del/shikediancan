@@ -3,5 +3,11 @@
   "sk_addresses": [],
   "sk_carts": [],
   "sk_orders": [],
-  "sk_favorites": []
+  "sk_favorites": [],
+  "sk_memberships": [],
+  "sk_member_orders": [],
+  "sk_coupons": [],
+  "sk_shops": [],
+  "sk_categories": [],
+  "sk_products": []
 }

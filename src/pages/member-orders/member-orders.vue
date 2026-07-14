@@ -50,6 +50,7 @@ import adaptPage from '@/utils/page-adapter.js'
 
 import auth from '../../utils/auth.js'
 import membership from '../../utils/membership.js'
+import benefitBackend from '../../utils/benefit-backend.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -68,6 +69,7 @@ const pageConfig = {
   },
 
   onShow() {
+    this.renderOrders(benefitBackend.getCachedMemberOrders())
     this.refresh()
   },
 
@@ -76,8 +78,19 @@ const pageConfig = {
   },
 
   // 读取当前账号会员订单，并同步处理超时状态。
-  refresh() {
-    const orders = membership.getPaymentList().map(item => ({
+  async refresh() {
+    let source = []
+    try {
+      source = await benefitBackend.fetchMemberOrders()
+    } catch (err) {
+      console.error('fetch member orders failed', err)
+      source = membership.getPaymentList()
+    }
+    this.renderOrders(source)
+  },
+
+  renderOrders(source = []) {
+    const orders = source.map(item => ({
       ...item,
       amountText: Number(item.paidAmount || item.amount || 0).toFixed(2),
       createdText: this.formatTime(item.createdAt),
@@ -142,9 +155,14 @@ const pageConfig = {
   },
 
   // 付款前校验当前会员等级，防止支付已不适用的旧订单。
-  continuePay(e) {
+  async continuePay(e) {
     const id = e.currentTarget.dataset.id
-    const order = membership.getPayment(id)
+    let order = null
+    try {
+      order = await benefitBackend.getMemberOrder(id)
+    } catch (err) {
+      order = membership.getPayment(id)
+    }
     if (!order || order.status !== 'unpaid') {
       this.refresh()
       return uni.showToast({ title: '该订单已失效', icon: 'none' })
@@ -164,12 +182,16 @@ const pageConfig = {
       content: '取消后该订单将无法继续支付，确认取消吗？',
       confirmText: '取消订单',
       confirmColor: '#ef6644',
-      success: res => {
+      success: async res => {
         if (!res.confirm) return
-        const cancelled = membership.cancelPayment(id)
-        if (!cancelled) {
-          this.refresh()
-          return uni.showToast({ title: '该订单已失效', icon: 'none' })
+        try {
+          await benefitBackend.cancelMemberOrder(id)
+        } catch (err) {
+          const cancelled = membership.cancelPayment(id)
+          if (!cancelled) {
+            this.refresh()
+            return uni.showToast({ title: err.message || '该订单已失效', icon: 'none' })
+          }
         }
         this.refresh()
         uni.showToast({ title: '订单已取消', icon: 'none' })
@@ -181,9 +203,14 @@ const pageConfig = {
     uni.navigateTo({ url: '/pages/plus/plus' })
   },
 
-  deleteOrder(e) {
+  async deleteOrder(e) {
     const id = e.currentTarget.dataset.id
-    const order = membership.getPayment(id)
+    let order = null
+    try {
+      order = await benefitBackend.getMemberOrder(id)
+    } catch (err) {
+      order = membership.getPayment(id)
+    }
     if (!order || order.status === 'unpaid') {
       return uni.showToast({ title: '待支付订单请先取消', icon: 'none' })
     }
@@ -192,9 +219,13 @@ const pageConfig = {
       content: '删除后无法恢复，确认删除这条记录吗？',
       confirmText: '删除',
       confirmColor: '#ff4d3d',
-      success: res => {
+      success: async res => {
         if (!res.confirm) return
-        membership.deletePayment(id)
+        try {
+          await benefitBackend.deleteMemberOrder(id)
+        } catch (err) {
+          membership.deletePayment(id)
+        }
         this.setData({ swipedId: '' })
         this.refresh()
         uni.showToast({ title: '已删除', icon: 'none' })

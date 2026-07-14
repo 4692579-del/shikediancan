@@ -76,19 +76,19 @@
 import adaptPage from '@/utils/page-adapter.js'
 // 点餐页：按分类筛选菜品，处理规格与数量选择，并同步购物车摘要。
 
-import data from '../../utils/data.js'
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
 import membership from '../../utils/membership.js'
 import orderBackend from '../../utils/order-backend.js'
+import productBackend from '../../utils/product-backend.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
-    shop: data.shops[0],
-    categories: data.categories.filter(item => item.id !== 'all'),
+    shop: productBackend.getShops()[0] || {},
+    categories: productBackend.getCategories().filter(item => item.id !== 'all'),
     active: 'hot',
-    foods: data.foods,
-    visibleFoods: data.foods,
+    foods: productBackend.getFoods(),
+    visibleFoods: productBackend.getFoods(),
     cartCount: 0,
     cartTotal: 0,
     membershipActive: false,
@@ -103,11 +103,27 @@ const pageConfig = {
   onLoad(options) {
     const shopId = Number(uni.getStorageSync('sk_shop_id') || 1)
     const category = uni.getStorageSync('sk_menu_category') || 'hot'
-    const shop = data.shops.find(item => item.id === shopId) || data.shops[0]
-    this.setData({ statusHeight: getApp().globalData.statusBarHeight, shop, active: category })
+    const productData = productBackend.getSnapshot()
+    const shop = productData.shops.find(item => item.id === shopId) || productData.shops[0] || {}
+    this.setData({
+      statusHeight: getApp().globalData.statusBarHeight,
+      shop,
+      categories: productData.categories.filter(item => item.id !== 'all'),
+      foods: productData.foods,
+      active: category
+    })
     this.filter(category)
+    productBackend.syncProducts().then(nextData => {
+      const nextShop = nextData.shops.find(item => item.id === shopId) || nextData.shops[0] || this.shop
+      this.setData({
+        shop: nextShop,
+        categories: nextData.categories.filter(item => item.id !== 'all'),
+        foods: nextData.foods
+      })
+      this.filter(this.active)
+    }).catch(err => console.error('sync products failed', err))
     if (options.openSpec && store.isLogin()) {
-      const selectedFood = data.foods.find(item => item.id === Number(options.openSpec))
+      const selectedFood = productBackend.getFoodById(options.openSpec)
       if (selectedFood) this.setData({ specVisible: true, selectedFood, selectedSpec: '标准份', specCount: 1 })
     }
   },
@@ -126,15 +142,16 @@ const pageConfig = {
   },
   // 人气分类按销量筛选，其余分类按 category 字段筛选。
   filter(category) {
-    let visibleFoods = category === 'hot' ? data.foods.filter(item => item.sales > 900) : data.foods.filter(item => item.category === category)
-    if (!visibleFoods.length) visibleFoods = data.foods.slice(0, 5)
+    const foods = this.foods && this.foods.length ? this.foods : productBackend.getFoods()
+    let visibleFoods = category === 'hot' ? foods.filter(item => item.sales > 900) : foods.filter(item => item.category === category)
+    if (!visibleFoods.length) visibleFoods = foods.slice(0, 5)
     this.setData({ visibleFoods })
   },
   goFoodDetail(e) { uni.navigateTo({ url: `/pages/product-detail/product-detail?id=${e.currentTarget.dataset.id}` }) },
   // 未登录也允许查看规格，点击确认加入购物车时再鉴权。
   showSpec(e) {
     const id = Number(e.currentTarget.dataset.id)
-    const selectedFood = data.foods.find(item => item.id === id)
+    const selectedFood = productBackend.getFoodById(id)
     if (!selectedFood) return
     this.setData({ specVisible: true, selectedFood, selectedSpec: '标准份', specCount: 1 })
   },

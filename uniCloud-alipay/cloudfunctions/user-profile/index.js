@@ -3,12 +3,16 @@
 const db = uniCloud.database()
 const users = db.collection('sk_users')
 
+function defaultNickname(username) {
+  return `食刻用户${username}`
+}
+
 function publicUser(user) {
   return {
     uid: user._id,
     accountId: `cloud:${user._id}`,
     username: user.username,
-    nickname: user.nickname || user.username,
+    nickname: user.nickname || defaultNickname(user.username),
     phone: user.phone || '',
     avatar: user.avatar || '/static/assets/icons/smile.svg'
   }
@@ -53,6 +57,27 @@ exports.main = async (event = {}) => {
       code: 0,
       message: '\u5934\u50cf\u5df2\u66f4\u65b0',
       user: publicUser({ ...user, avatar })
+    }
+  }
+
+  if (action === 'updateNickname') {
+    const nickname = String(event.nickname || '').trim()
+    if (!nickname) return { code: 1004, message: '请输入昵称' }
+    if (nickname.length < 2 || nickname.length > 16) {
+      return { code: 1005, message: '昵称需为2-16个字符' }
+    }
+    if (/[<>]/.test(nickname)) {
+      return { code: 1006, message: '昵称包含不支持的字符' }
+    }
+
+    await users.doc(uid).update({
+      nickname,
+      updatedAt: Date.now()
+    })
+    return {
+      code: 0,
+      message: '昵称已更新',
+      user: publicUser({ ...user, nickname })
     }
   }
 

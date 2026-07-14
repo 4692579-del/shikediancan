@@ -1,0 +1,59 @@
+{
+  "bsonType": "object",
+  "required": ["userId", "title", "amount", "threshold", "used"],
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": {
+      "description": "优惠券ID"
+    },
+    "userId": {
+      "bsonType": "string",
+      "description": "用户ID"
+    },
+    "title": {
+      "bsonType": "string",
+      "description": "优惠券标题"
+    },
+    "amount": {
+      "bsonType": "double",
+      "description": "优惠金额"
+    },
+    "threshold": {
+      "bsonType": "double",
+      "description": "使用门槛"
+    },
+    "expireAt": {
+      "bsonType": "long",
+      "description": "到期时间"
+    },
+    "used": {
+      "bsonType": "bool",
+      "description": "是否已使用"
+    },
+    "source": {
+      "bsonType": "string",
+      "description": "来源，如 plus"
+    },
+    "tier": {
+      "bsonType": "string",
+      "description": "会员等级"
+    },
+    "cycle": {
+      "bsonType": "string",
+      "description": "发券周期"
+    },
+    "createdAt": {
+      "bsonType": "long",
+      "description": "创建时间"
+    },
+    "updatedAt": {
+      "bsonType": "long",
+      "description": "更新时间"
+    }
+  }
+}

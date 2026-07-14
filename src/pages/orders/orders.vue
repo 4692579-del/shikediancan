@@ -99,7 +99,6 @@ const pageConfig = {
       { id: 'all', name: '全部' },
       { id: 'making', name: '进行中' },
       { id: 'done', name: '已完成' },
-      { id: 'reviewed', name: '已评价' },
       { id: 'cancelled', name: '已取消' }
     ]
   },
@@ -107,19 +106,24 @@ const pageConfig = {
     if (!auth.guardPage('/pages/orders/orders')) return
     this.setData({ statusHeight: getApp().globalData.statusBarHeight })
   },
-  async onShow() {
+  onShow() {
     const active = uni.getStorageSync('sk_order_filter') || this.active
     uni.removeStorageSync('sk_order_filter')
     const activeLabel = active === 'unpaid' ? '全部' : (this.moreTabs.find(item => item.id === active) || this.moreTabs[0]).name
-    let orders = []
-    try {
-      orders = await orderBackend.fetchOrders()
-    } catch (err) {
-      console.error('fetch backend orders failed', err)
-      orders = paymentCountdown.normalizeOrders()
-    }
-    this.setData({ orders, active, activeLabel, showStatusMenu: false, cartCount: store.cartSummary().count })
+    const cachedOrders = orderBackend.getCachedOrders()
+    this.setData({ orders: cachedOrders, active, activeLabel, showStatusMenu: false, cartCount: store.cartSummary().count })
     this.filter()
+    orderBackend.fetchOrders()
+      .then(orders => {
+        this.setData({ orders, active, activeLabel, showStatusMenu: false, cartCount: store.cartSummary().count })
+        this.filter()
+      })
+      .catch(err => {
+        console.error('fetch backend orders failed', err)
+        const orders = paymentCountdown.normalizeOrders()
+        this.setData({ orders, active, activeLabel, showStatusMenu: false, cartCount: store.cartSummary().count })
+        this.filter()
+      })
   },
   toggleStatusMenu() { this.setData({ showStatusMenu: !this.showStatusMenu }) },
   selectTab(e) {
@@ -139,10 +143,8 @@ const pageConfig = {
       : active === 'making'
         ? orders.filter(item => ['making', 'delivery'].includes(item.status))
         : active === 'done'
-          ? orders.filter(item => item.status === 'done' && !item.reviewed && !item.review)
-          : active === 'reviewed'
-            ? orders.filter(item => item.status === 'done' && (item.reviewed || item.review))
-            : orders.filter(item => item.status === active)
+          ? orders.filter(item => item.status === 'done')
+          : orders.filter(item => item.status === active)
     this.setData({ filtered })
   },
   statusLabel(status) {
@@ -173,7 +175,7 @@ const pageConfig = {
       order = paymentCountdown.getOrder(id)
     }
     if (!order || order.status !== 'unpaid') {
-      await this.onShow()
+      this.onShow()
       return uni.showToast({ title: '该订单已取消', icon: 'none' })
     }
     store.set('sk_order_draft', order)

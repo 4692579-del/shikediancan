@@ -5,6 +5,7 @@ const MEMBERSHIP_KEY = 'sk_plus_memberships'
 const CURRENT_KEY = 'sk_plus_membership'
 const PAYMENT_KEY = 'sk_plus_payments'
 const COUPON_ACCOUNTS_KEY = 'sk_plus_coupon_accounts'
+const BACKEND_MODE_KEY = 'sk_benefit_backend_enabled'
 const PAYMENT_DURATION = 15 * 60 * 1000
 const DAY = 24 * 60 * 60 * 1000
 
@@ -59,6 +60,14 @@ function normalizeTier(tier) {
 
 function getTierConfig(tier = 'plus') {
   return { ...tiers[normalizeTier(tier)] }
+}
+
+function setBackendMode(enabled = true) {
+  uni.setStorageSync(BACKEND_MODE_KEY, Boolean(enabled))
+}
+
+function isBackendMode() {
+  return Boolean(uni.getStorageSync(BACKEND_MODE_KEY))
 }
 
 function formatDate(timestamp) {
@@ -179,6 +188,7 @@ function grantMonthlyCoupons(record) {
   }
   const existing = coupons.filter(item => item.source === 'plus' && item.tier === tier && item.cycle === cycle)
   if (existing.length) return existing
+  if (isBackendMode()) return []
 
   const expireAt = Math.min(Number(record.expireAt), new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59).getTime())
   const issued = couponTemplates(tier).map((item, index) => ({
@@ -328,6 +338,20 @@ function savePayment(payment) {
   return payment
 }
 
+function replacePaymentList(list = []) {
+  const id = accountId()
+  if (!id) return []
+  const payments = getPayments()
+  Object.keys(payments).forEach(paymentId => {
+    if (payments[paymentId] && payments[paymentId].accountId === id) delete payments[paymentId]
+  })
+  list.forEach(item => {
+    if (item && item.id) payments[item.id] = { ...item, accountId: id }
+  })
+  store.set(PAYMENT_KEY, payments)
+  return getPaymentList()
+}
+
 // 创建会员待支付订单；存在其他待支付会员订单时禁止重复创建。
 function createPayment(planId, tier = 'plus') {
   const targetTier = normalizeTier(tier)
@@ -463,6 +487,9 @@ export default {
   getPlans,
   getPlan,
   getTierConfig,
+  setBackendMode,
+  isBackendMode,
+  saveMembership,
   getMembership,
   isActive,
   getTier,
@@ -476,6 +503,8 @@ export default {
   hasFreeDelivery,
   grantMonthlyCoupons,
   createPayment,
+  savePayment,
+  replacePaymentList,
   getPayment,
   getPaymentList,
   getPendingPayment,

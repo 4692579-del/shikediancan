@@ -1,0 +1,7 @@
+{
+  "name": "benefit-service",
+  "version": "1.0.0",
+  "description": "食刻优惠券与会员权益云函数",
+  "main": "index.js",
+  "dependencies": {}
+}

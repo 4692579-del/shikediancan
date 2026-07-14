@@ -1,0 +1,20 @@
+{
+  "bsonType": "object",
+  "required": ["id", "name"],
+  "permission": {
+    "read": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": { "description": "ID，系统自动生成" },
+    "id": { "bsonType": "string", "description": "分类编号" },
+    "name": { "bsonType": "string", "description": "分类名称" },
+    "icon": { "bsonType": "string", "description": "分类图标" },
+    "color": { "bsonType": "string", "description": "分类底色" },
+    "sort": { "bsonType": "int", "description": "排序" },
+    "createdAt": { "bsonType": "long", "description": "创建时间" },
+    "updatedAt": { "bsonType": "long", "description": "更新时间" }
+  }
+}

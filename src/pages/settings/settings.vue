@@ -2,7 +2,7 @@
 <view :style="globalThemeStyle" class="page"><view class="safe-nav" :style="`--status-height:${statusHeight}px`"><view class="nav-row"><button hover-class="none" class="nav-back page-back" @tap="back"><image src="/static/assets/icons/back.svg" mode="aspectFit" /></button><text class="nav-title">设置</text><view class="nav-back"></view></view></view>
 <view class="settings-content">
   <view class="setting-group notification-group card"><text class="group-title">消息通知</text><button hover-class="none" class="setting-row"><text>订单状态通知</text><view :class="`switch ${notice ? 'on' : ''}`" data-field="notice" @tap="toggle"><view></view></view></button><button hover-class="none" class="setting-row"><text>优惠活动通知</text><view :class="`switch ${promotion ? 'on' : ''}`" data-field="promotion" @tap="toggle"><view></view></view></button><button hover-class="none" class="setting-row"><text>声音与振动</text><view :class="`switch ${vibration ? 'on' : ''}`" data-field="vibration" @tap="toggle"><view></view></view></button></view>
-  <view class="setting-group card"><text class="group-title">通用</text><button hover-class="none" class="setting-row" @tap="changeAvatar"><text>更换头像</text><view class="profile-entry-right"><image :src="user.avatar" mode="aspectFill" /><text>›</text></view></button><button hover-class="none" class="setting-row" @tap="editTheme"><text>更改资料卡主题</text><view class="theme-entry-right"><view :style="`background:${profileTheme.color}`"></view><text>{{profileTheme.name}} ›</text></view></button><button hover-class="none" class="setting-row" @touchstart="startCacheHold" @touchend="cancelCacheHold" @touchcancel="cancelCacheHold" @tap="clearCache"><text>清除缓存</text><text>{{cacheSize}} ›</text></button></view>
+  <view class="setting-group card"><text class="group-title">通用</text><button hover-class="none" class="setting-row" @tap="changeAvatar"><text>更换头像</text><view class="profile-entry-right"><image :src="user && user.avatar ? user.avatar : '/static/assets/icons/smile.svg'" mode="aspectFill" /><text>›</text></view></button><button hover-class="none" class="setting-row" @tap="copyUsername"><text>用户名</text><text>{{user && user.username ? user.username : '未登录'}}</text></button><button hover-class="none" class="setting-row" @tap="editNickname"><text>修改昵称</text><text>{{user && user.nickname ? user.nickname : '未设置'}} ›</text></button><button hover-class="none" class="setting-row" @tap="editTheme"><text>更改资料卡主题</text><view class="theme-entry-right"><view :style="`background:${profileTheme.color}`"></view><text>{{profileTheme.name}} ›</text></view></button><button hover-class="none" class="setting-row" @touchstart="startCacheHold" @touchend="cancelCacheHold" @touchcancel="cancelCacheHold" @tap="clearCache"><text>清除缓存</text><text>{{cacheSize}} ›</text></button></view>
   <view class="setting-group card"><text class="group-title">协议与隐私</text><button hover-class="none" class="setting-row" data-type="user" @tap="openAgreement"><text>用户服务协议</text><text>›</text></button><button hover-class="none" class="setting-row" data-type="privacy" @tap="openAgreement"><text>隐私政策</text><text>›</text></button></view>
   <button hover-class="none" v-if="user" class="logout" @tap="logout">退出登录</button><button hover-class="none" v-else class="primary-btn" @tap="login">登录账号</button>
 </view></view>
@@ -18,6 +18,7 @@ import profileTheme from '../../utils/profile-theme.js'
 import account from '../../utils/account.js'
 import membership from '../../utils/membership.js'
 import cloud from '../../utils/cloud.js'
+import benefitBackend from '../../utils/benefit-backend.js'
 const NOTIFICATION_SETTINGS_KEY = 'sk_notification_settings'
 const DEFAULT_NOTIFICATION_SETTINGS = {
   notice: true,
@@ -158,6 +159,24 @@ const pageConfig = {
     }
   },
   editTheme() { uni.navigateTo({ url: '/pages/profile-theme/profile-theme' }) },
+  editNickname() {
+    if (!this.user) {
+      uni.showToast({ title: '请先登录账号', icon: 'none' })
+      return
+    }
+    uni.navigateTo({ url: '/pages/nickname/nickname' })
+  },
+  copyUsername() {
+    const username = this.user && this.user.username ? this.user.username : ''
+    if (!username) {
+      uni.showToast({ title: '请先登录账号', icon: 'none' })
+      return
+    }
+    uni.setClipboardData({
+      data: username,
+      success: () => uni.showToast({ title: '已复制用户名', icon: 'none' })
+    })
+  },
   openAgreement(e) {
     const type = e.currentTarget.dataset.type === 'privacy' ? 'privacy' : 'user'
     uni.navigateTo({ url: `/pages/legal/legal?type=${type}` })
@@ -187,9 +206,14 @@ const pageConfig = {
     uni.showModal({ title: '清除缓存', content: '不会清除登录、订单和地址信息', success: res => { if (res.confirm) { uni.removeStorageSync('sk_search_history'); this.setData({ cacheSize: '0 KB' }); uni.showToast({ title: '清理完成' }) } } })
   },
   // 仅供开发测试：完整移除当前账号会员身份及会员订单。
-  resetMembershipForTesting() {
+  async resetMembershipForTesting() {
     if (!this.user) return
-    membership.resetCurrentMembership()
+    try {
+      await benefitBackend.resetMembership()
+    } catch (err) {
+      console.error('reset backend membership failed', err)
+      membership.resetCurrentMembership()
+    }
     const currentTheme = profileTheme.getTheme(store.get('sk_profile_theme', 'black'))
     if (currentTheme.membershipLimited) account.saveTheme('black')
     this.setData({

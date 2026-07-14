@@ -29,7 +29,10 @@
 
     <view :key="formAnimateKey" class="form-panel">
       <view class="input-row">
-        <input maxlength="20" :placeholder="labels.usernamePlaceholder" :value="username" @input="usernameInput" />
+        <input maxlength="10" :placeholder="labels.usernamePlaceholder" :value="username" @input="usernameInput" />
+      </view>
+      <view v-if="mode === 'register'" class="username-rule">
+        <text>5-10位，字母开头，仅支持字母和数字</text>
       </view>
       <view class="input-row password-row">
         <input :password="!showPassword" maxlength="20" :placeholder="labels.passwordPlaceholder" :value="password" @input="passwordInput" />
@@ -96,6 +99,10 @@ function toast(title) {
   uni.showToast({ title, icon: 'none' })
 }
 
+function isValidUsername(username) {
+  return /^[A-Za-z][A-Za-z0-9]{4,9}$/.test(username)
+}
+
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -155,8 +162,8 @@ const pageConfig = {
       toast('\u8bf7\u5148\u540c\u610f\u670d\u52a1\u534f\u8bae\u548c\u9690\u79c1\u653f\u7b56')
       return false
     }
-    if (!/^[a-zA-Z0-9_\u4e00-\u9fa5]{3,20}$/.test(this.username)) {
-      toast('\u7528\u6237\u540d\u9700\u4e3a3-20\u4f4d\u4e2d\u6587\u3001\u5b57\u6bcd\u3001\u6570\u5b57\u6216\u4e0b\u5212\u7ebf')
+    if (!isValidUsername(this.username)) {
+      toast('用户名需为5-10位，以字母开头，仅支持字母和数字')
       return false
     }
     if (!/^.{6,20}$/.test(this.password)) {
@@ -428,6 +435,22 @@ export default adaptPage(pageConfig)
 .input-row:nth-child(2){animation-delay:.035s}
 .input-row:nth-child(3){animation-delay:.07s}
 .confirm-row{animation-name:confirmExpandIn}
+.username-rule{
+  min-height:34rpx;
+  margin:-14rpx 4rpx -2rpx;
+  padding-left:26rpx;
+  display:flex;
+  align-items:center;
+  color:rgba(238,105,61,.74);
+  font-size:21rpx;
+  line-height:1.35;
+  animation:inputRiseIn .28s cubic-bezier(.2,.8,.2,1) both;
+}
+.username-rule text{
+  padding:8rpx 18rpx;
+  border-radius:999rpx;
+  background:rgba(238,105,61,.07);
+}
 .input-row:focus-within{
   border-color:rgba(238,105,61,.45);
   box-shadow:0 16rpx 36rpx rgba(238,105,61,.09);

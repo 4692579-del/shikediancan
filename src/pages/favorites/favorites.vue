@@ -37,9 +37,9 @@
 
 <script>
 import adaptPage from '@/utils/page-adapter.js'
-import data from '../../utils/data.js'
 import auth from '../../utils/auth.js'
 import favoriteBackend from '../../utils/favorite-backend.js'
+import productBackend from '../../utils/product-backend.js'
 
 const pageConfig = {
   data: {
@@ -53,8 +53,12 @@ const pageConfig = {
     if (!auth.guardPage('/pages/favorites/favorites')) return
     this.setData({ statusHeight: getApp().globalData.statusBarHeight })
   },
-  async onShow() {
-    await this.loadFavorites()
+  onShow() {
+    this.loadCachedFavorites()
+    this.loadFavorites()
+  },
+  loadCachedFavorites() {
+    this.setData({ foods: favoriteBackend.getCachedFoods(), swipedId: 0 })
   },
   async loadFavorites() {
     try {
@@ -62,8 +66,7 @@ const pageConfig = {
       this.setData({ foods, swipedId: 0 })
     } catch (err) {
       console.error('fetch favorites failed', err)
-      const ids = favoriteBackend.getCachedIds()
-      this.setData({ foods: data.foods.filter(item => ids.includes(item.id)), swipedId: 0 })
+      this.setData({ foods: favoriteBackend.getCachedFoods(), swipedId: 0 })
     }
   },
   back() { uni.navigateBack() },
@@ -102,7 +105,8 @@ const pageConfig = {
     this.setData({ swipedId: dx < 0 ? Number(e.currentTarget.dataset.id) : 0 })
   },
   add(e) {
-    const selectedFood = data.foods.find(item => item.id === Number(e.currentTarget.dataset.id))
+    const selectedFood = productBackend.getFoodById(e.currentTarget.dataset.id)
+    if (!selectedFood) return uni.showToast({ title: '商品数据加载中', icon: 'none' })
     this.setData({ selectedFood, showSpecSheet: true, swipedId: 0 })
   },
   closeSpecSheet() { this.setData({ showSpecSheet: false }) },

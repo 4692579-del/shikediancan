@@ -74,6 +74,7 @@ import wallet from '../../utils/wallet.js'
 import walletDiscount from '../../utils/wallet-discount.js'
 import membership from '../../utils/membership.js'
 import orderBackend from '../../utils/order-backend.js'
+import benefitBackend from '../../utils/benefit-backend.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -125,7 +126,14 @@ const pageConfig = {
       return
     }
     if (options.type === 'membership') {
-      const payment = membership.getPayment(options.payment)
+      let payment = null
+      try {
+        payment = await benefitBackend.getMemberOrder(options.payment)
+        membership.savePayment(payment)
+      } catch (err) {
+        console.error('load member payment failed', err)
+        payment = membership.getPayment(options.payment)
+      }
       if (!payment || payment.status !== 'unpaid') {
         uni.showToast({ title: '会员订单已失效', icon: 'none' })
         setTimeout(() => uni.redirectTo({ url: '/pages/plus/plus' }), 500)
@@ -334,15 +342,16 @@ const pageConfig = {
         return
       }
       if (this.businessType === 'membership') {
-        const completed = membership.completePayment(
-          this.orderId,
-          this.method,
-          Number(this.amount),
-          Number(this.walletDiscount)
-        )
-        if (!completed) {
+        try {
+          await benefitBackend.payMemberOrder(this.orderId, {
+            method: this.method,
+            amount: Number(this.amount),
+            walletDiscount: Number(this.walletDiscount)
+          })
+        } catch (err) {
+          console.error('backend membership pay failed', err)
           this.setData({ paying: false })
-          this.handleExpired()
+          uni.showToast({ title: err.message || '会员支付失败，请重试', icon: 'none' })
           return
         }
         this.stopCountdown()
@@ -373,7 +382,12 @@ const pageConfig = {
       store.set('sk_orders', [order, ...localOrders.filter(item => item.id !== order.id)])
       if (this.method === 'wallet') wallet.pay(Number(order.total), order.id)
       if (order.coupon) {
-        store.set('sk_coupons', store.get('sk_coupons', []).map(item => item.id === order.coupon.id ? { ...item, used: true } : item))
+        try {
+          await benefitBackend.markCouponUsed(order.coupon.id, order.id)
+        } catch (err) {
+          console.error('mark coupon used failed', err)
+          store.set('sk_coupons', store.get('sk_coupons', []).map(item => item.id === order.coupon.id ? { ...item, used: true } : item))
+        }
         store.set('sk_selected_coupon', null)
       }
       uni.redirectTo({ url: `/pages/pay-result/pay-result?id=${order.id}&method=${this.method}` })

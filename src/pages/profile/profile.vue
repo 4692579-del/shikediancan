@@ -4,7 +4,7 @@
     <text v-if="profileTheme.watermark" class="profile-v-watermark">V</text>
     <button hover-class="none" v-if="user" class="user-row" @tap="account">
       <view class="user-avatar"><image :src="user.avatar" mode="aspectFill" /></view>
-      <view class="user-copy"><view class="name-line"><text class="user-name">{{user.nickname}}</text><text v-if="membershipActive" :class="`level-chip ${membershipTier === 'pro' ? 'pro-level-chip' : 'plus-level-chip'}`">{{membershipTier === 'pro' ? 'PRO会员' : 'PLUS会员'}}</text></view><text class="user-phone">{{user.phone || user.username || '已登录账号'}}</text></view><text class="chev">›</text>
+      <view class="user-copy"><view class="name-line"><text class="user-name">{{user.nickname || ('食刻用户' + user.username)}}</text><text v-if="membershipActive" :class="`level-chip ${membershipTier === 'pro' ? 'pro-level-chip' : 'plus-level-chip'}`">{{membershipTier === 'pro' ? 'PRO会员' : 'PLUS会员'}}</text></view><text class="user-phone">{{user.username || '已登录账号'}}</text></view><text class="chev">›</text>
     </button>
     <button hover-class="none" v-else class="user-row" @tap="account">
       <view class="user-avatar guest"><image src="/static/assets/icons/user.svg" mode="aspectFit" /></view>
@@ -25,7 +25,7 @@
         <button hover-class="none" class="order-primary" data-status="unpaid" @tap="goOrders"><view class="action-icon"><image src="/static/assets/icons/payment.svg" mode="aspectFit" /><text v-if="unpaidCount">{{unpaidCount}}</text></view><text>待付款</text></button>
         <button hover-class="none" data-status="making" @tap="goOrders"><view class="action-icon"><image src="/static/assets/icons/shop.svg" mode="aspectFit" /><text v-if="activeOrderCount">{{activeOrderCount}}</text></view><text>进行中</text></button>
         <button hover-class="none" data-status="done" @tap="goOrders"><view class="action-icon"><image src="/static/assets/icons/success.svg" mode="aspectFit" /><text v-if="doneCount">{{doneCount}}</text></view><text>已完成</text></button>
-        <button hover-class="none" data-status="cancelled" @tap="goOrders"><view class="action-icon"><image src="/static/assets/icons/service.svg" mode="aspectFit" /><text v-if="cancelledCount">{{cancelledCount}}</text></view><text>退款/售后</text></button>
+        <button hover-class="none" @tap="goReviews"><view class="action-icon"><image src="/static/assets/icons/star.svg" mode="aspectFit" /><text v-if="reviewedCount">{{reviewedCount}}</text></view><text>我的评价</text></button>
       </view>
     </view>
     <view v-if="!membershipActive" class="member-card">
@@ -58,6 +58,8 @@ import profileTheme from '../../utils/profile-theme.js'
 import wallet from '../../utils/wallet.js'
 import membership from '../../utils/membership.js'
 import favoriteBackend from '../../utils/favorite-backend.js'
+import orderBackend from '../../utils/order-backend.js'
+import benefitBackend from '../../utils/benefit-backend.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -69,22 +71,33 @@ const pageConfig = {
     activeOrderCount: 0,
     doneCount: 0,
     cancelledCount: 0,
+    reviewedCount: 0,
     membershipActive: false,
     membershipTier: '',
     membershipExpireText: '',
     profileTheme: profileTheme.getTheme('black')
   },
   onLoad() { this.setData({ statusHeight: getApp().globalData.statusBarHeight }) },
-  // 同步用户资料、订单数量、收藏积分、会员状态和资料卡主题。
-  async onShow() {
+  // 先用本地缓存立即渲染“我的”页，再在后台刷新后端数据，避免切换进来时长时间空白。
+  onShow() {
+    this.renderProfile()
     const user = store.get('sk_user', null)
-    if (user) {
-      try {
-        await favoriteBackend.fetchFavorites()
-      } catch (err) {
-        console.error('fetch favorites failed', err)
-      }
-    }
+    if (!user) return
+    Promise.allSettled([
+      favoriteBackend.fetchFavorites(),
+      orderBackend.fetchOrders(),
+      benefitBackend.syncBenefits()
+    ]).then(results => {
+      const labels = ['fetch favorites failed', 'fetch orders failed', 'sync benefits failed']
+      results.forEach((item, index) => {
+        if (item.status === 'rejected') console.error(labels[index], item.reason)
+      })
+      this.renderProfile()
+    })
+  },
+  // 同步用户资料、订单数量、收藏积分、会员状态和资料卡主题。
+  renderProfile() {
+    const user = store.get('sk_user', null)
     const orders = user ? store.get('sk_orders', []) : []
     let themeId = user ? store.get('sk_profile_theme', 'black') : 'black'
     let theme = profileTheme.getTheme(themeId)
@@ -107,6 +120,7 @@ const pageConfig = {
       activeOrderCount: orders.filter(item => ['making', 'delivery'].includes(item.status)).length,
       doneCount: orders.filter(item => item.status === 'done').length,
       cancelledCount: orders.filter(item => item.status === 'cancelled').length,
+      reviewedCount: orders.filter(item => item.status === 'done' && item.reviewed === true).length,
       membershipActive,
       membershipTier: membershipActive ? membership.getTier() : '',
       membershipExpireText: memberRecord ? membership.formatDate(memberRecord.expireAt) : '',
@@ -128,6 +142,10 @@ const pageConfig = {
     if (e.currentTarget.dataset.status) uni.setStorageSync('sk_order_filter', e.currentTarget.dataset.status)
     if (!auth.requireLogin('/pages/orders/orders')) return
     uni.redirectTo({ url: '/pages/orders/orders' })
+  },
+  goReviews() {
+    if (!auth.requireLogin('/pages/my-reviews/my-reviews')) return
+    uni.navigateTo({ url: '/pages/my-reviews/my-reviews' })
   },
   goPage(e) {
     const url = e.currentTarget.dataset.url
@@ -323,7 +341,7 @@ export default adaptPage(pageConfig)
   box-shadow:inset 0 1rpx 0 rgba(255,255,255,.82),0 3rpx 9rpx rgba(20,28,38,.14);
 }
 .pro-level-chip{background:linear-gradient(135deg,#f4d5a1,#c7995e);color:#50371e}
-.user-phone{margin-top:7rpx;color:#d0d0d5;font-size:20rpx}
+.user-phone{margin-top:0;color:#d0d0d5;font-size:20rpx;line-height:1.2}
 .user-tip{display:block;margin-top:5rpx;color:#8f8f96;font-size:17rpx}
 .chev{color:#b3b3b9;font-size:38rpx}
 .stats{

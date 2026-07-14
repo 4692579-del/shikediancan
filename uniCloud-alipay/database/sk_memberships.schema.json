@@ -1,0 +1,55 @@
+{
+  "bsonType": "object",
+  "required": ["userId", "opened", "tier", "expireAt"],
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": {
+      "description": "会员记录ID"
+    },
+    "userId": {
+      "bsonType": "string",
+      "description": "用户ID"
+    },
+    "opened": {
+      "bsonType": "bool",
+      "description": "会员是否有效"
+    },
+    "tier": {
+      "bsonType": "string",
+      "description": "会员等级：plus/pro"
+    },
+    "tierName": {
+      "bsonType": "string",
+      "description": "会员等级名称"
+    },
+    "planId": {
+      "bsonType": "string",
+      "description": "最近开通方案ID"
+    },
+    "planName": {
+      "bsonType": "string",
+      "description": "最近开通方案名称"
+    },
+    "expireAt": {
+      "bsonType": "long",
+      "description": "会员到期时间戳"
+    },
+    "lastPaymentId": {
+      "bsonType": "string",
+      "description": "最近支付订单号"
+    },
+    "createdAt": {
+      "bsonType": "long",
+      "description": "创建时间"
+    },
+    "updatedAt": {
+      "bsonType": "long",
+      "description": "更新时间"
+    }
+  }
+}

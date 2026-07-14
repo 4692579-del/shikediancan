@@ -103,6 +103,7 @@ import adaptPage from '@/utils/page-adapter.js'
 import auth from '../../utils/auth.js'
 import store from '../../utils/store.js'
 import membership from '../../utils/membership.js'
+import benefitBackend from '../../utils/benefit-backend.js'
 // PLUS 与 PRO 的页面文案、券包、权益和对比数据配置。
 const tierViews = {
   plus: {
@@ -217,6 +218,13 @@ const pageConfig = {
 
   // 同步当前会员等级，并决定默认展示的会员卡片。
   onShow() {
+    this.renderMemberCenter()
+    benefitBackend.syncBenefits()
+      .then(() => this.renderMemberCenter())
+      .catch(err => console.error('sync member benefits failed', err))
+  },
+
+  renderMemberCenter() {
     const current = membership.syncCurrent()
     const membershipActive = membership.isActive()
     const currentTier = membershipActive ? membership.getTier() : ''
@@ -323,9 +331,15 @@ const pageConfig = {
   },
 
   // 开通前检查待支付会员订单，再创建开通、续费或升级订单。
-  openMembership() {
+  async openMembership() {
     if (this.ctaDisabled) return uni.showToast({ title: '当前已享受更高等级 PRO 权益', icon: 'none' })
-    const pending = membership.getPendingPayment()
+    let pending = null
+    try {
+      pending = await benefitBackend.getPendingMemberOrder()
+    } catch (err) {
+      console.error('fetch pending member order failed', err)
+      pending = membership.getPendingPayment()
+    }
     if (pending) {
       uni.showModal({
         title: '存在待支付会员订单',
@@ -338,11 +352,15 @@ const pageConfig = {
       })
       return
     }
-    const payment = membership.createPayment(this.selectedPlanId, this.activeTier)
-    if (!payment) return uni.showToast({ title: '当前会员等级无需降级', icon: 'none' })
-    uni.navigateTo({
-      url: `/pages/pay/pay?type=membership&payment=${payment.id}&amount=${payment.amount}`
-    })
+    try {
+      const payment = await benefitBackend.createMemberOrder(this.selectedPlanId, this.activeTier)
+      if (!payment) return uni.showToast({ title: '当前会员等级无需变更', icon: 'none' })
+      uni.navigateTo({
+        url: `/pages/pay/pay?type=membership&payment=${payment.id}&amount=${payment.amount}`
+      })
+    } catch (err) {
+      uni.showToast({ title: err.message || '会员订单创建失败', icon: 'none' })
+    }
   }
 }
 

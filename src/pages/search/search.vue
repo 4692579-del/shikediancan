@@ -35,15 +35,16 @@
 import adaptPage from '@/utils/page-adapter.js'
 // 搜索页：完成菜品关键字搜索、历史记录管理和商品详情跳转。
 
-import data from '../../utils/data.js'
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
 import orderBackend from '../../utils/order-backend.js'
+import productBackend from '../../utils/product-backend.js'
 const pageConfig = {
   data: { statusHeight: 20, keyword: '', results: [], searched: false, history: [], swipedHistory: '', hot: ['照烧鸡腿饭', '麻辣香锅', '杨枝甘露', '轻食沙拉', '牛肉意面', '双人餐'] },
   onLoad() {
     if (!auth.guardPage('/pages/search/search')) return
     this.setData({ statusHeight: getApp().globalData.statusBarHeight, history: store.get('sk_search_history', []) })
+    productBackend.syncProducts().catch(err => console.error('sync products failed', err))
   },
   back() { uni.navigateBack() },
   input(e) { this.setData({ keyword: e.detail.value }); if (!e.detail.value) this.setData({ searched: false, results: [] }) },
@@ -52,7 +53,7 @@ const pageConfig = {
   search(e) {
     const keyword = (e.currentTarget.dataset.word || this.keyword).trim()
     if (!keyword) return
-    const results = data.foods.filter(item => `${item.name}${item.desc}${item.tag}`.includes(keyword))
+    const results = productBackend.searchFoods(keyword)
     const history = [keyword].concat(this.history.filter(item => item !== keyword)).slice(0, 8)
     store.set('sk_search_history', history)
     this.setData({ keyword, results, searched: true, history, swipedHistory: '' })
@@ -88,7 +89,8 @@ const pageConfig = {
   },
   goFoodDetail(e) { uni.navigateTo({ url: `/pages/product-detail/product-detail?id=${e.currentTarget.dataset.id}` }) },
   add(e) {
-    const food = data.foods.find(item => item.id === Number(e.currentTarget.dataset.id))
+    const food = productBackend.getFoodById(e.currentTarget.dataset.id)
+    if (!food) return uni.showToast({ title: '商品数据加载中', icon: 'none' })
     store.addCart(food)
     orderBackend.saveCart(store.getCart()).catch(err => console.error('sync cart failed', err))
     uni.showToast({ title: '已加入购物车' })

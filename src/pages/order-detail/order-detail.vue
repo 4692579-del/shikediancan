@@ -73,7 +73,7 @@
   <view :class="`detail-actions ${order.status === 'unpaid' || order.status === 'making' || order.status === 'delivery' || order.status === 'done' ? 'two-actions' : 'single-action'}`">
     <button hover-class="none" v-if="order.status === 'unpaid'" class="primary-small" @tap="payNow">立即付款</button>
     <button hover-class="none" v-if="order.status === 'making' || order.status === 'delivery'" class="primary-small" @tap="confirmDelivery">确认送达</button>
-    <button hover-class="none" v-if="order.status === 'done'" :class="`primary-small ${order.reviewed || order.review ? 'disabled-action' : ''}`" @tap="reviewOrder">{{ order.reviewed || order.review ? '已评价' : '立即评价' }}</button>
+    <button hover-class="none" v-if="order.status === 'done'" :class="`primary-small ${hasReviewed ? 'disabled-action' : ''}`" @tap="reviewOrder">{{ hasReviewed ? '已评价' : '立即评价' }}</button>
     <button hover-class="none" @tap="contact">联系客服</button>
   </view>
   <product-spec-sheet :show="showSpecSheet" :food="selectedFood" @close="closeSpecSheet" @added="specAdded" />
@@ -83,9 +83,13 @@
 import adaptPage from '@/utils/page-adapter.js'
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
-import foodData from '../../utils/data.js'
 import paymentCountdown from '../../utils/payment-countdown.js'
 import orderBackend from '../../utils/order-backend.js'
+import productBackend from '../../utils/product-backend.js'
+
+function hasOrderReview(order) {
+  return Boolean(order && order.reviewed === true)
+}
 
 const pageConfig = {
   data: {
@@ -101,16 +105,26 @@ const pageConfig = {
     selectedFood: null,
     showSpecSheet: false
   },
-  async onLoad(options) {
+  computed: {
+    hasReviewed() {
+      return hasOrderReview(this.order)
+    }
+  },
+  onLoad(options) {
     const target = auth.buildUrl('/pages/order-detail/order-detail', options)
     if (!auth.guardPage(target)) return
     this.orderId = options.id
     this.setData({ statusHeight: getApp().globalData.statusBarHeight, fromPayResult: options.from === 'payResult' })
-    await this.loadOrder()
+    const cachedOrder = orderBackend.getCachedOrders().find(item => item.id === this.orderId)
+    if (cachedOrder) this.renderOrder(cachedOrder)
+    productBackend.syncProducts().then(() => {
+      if (this.order) this.setData({ recommendations: this.getRecommendations(this.order) })
+    }).catch(err => console.error('sync products failed', err))
+    this.loadOrder()
   },
-  async onShow() {
+  onShow() {
     if (!this.orderId) return
-    await this.loadOrder()
+    this.loadOrder()
   },
   onHide() { this.stopPaymentCountdown() },
   onUnload() { this.stopPaymentCountdown() },
@@ -126,6 +140,9 @@ const pageConfig = {
       uni.showToast({ title: '订单不存在', icon: 'none' })
       return
     }
+    this.renderOrder(order)
+  },
+  renderOrder(order) {
     const localOrders = store.get('sk_orders', [])
     store.set('sk_orders', [order, ...localOrders.filter(item => item.id !== order.id)])
     this.setData({ order, recommendations: this.getRecommendations(order) })
@@ -135,7 +152,8 @@ const pageConfig = {
   getRecommendations(order) {
     if (!order) return []
     const orderedIds = new Set((order.items || []).map(item => Number(item.id)))
-    const candidates = foodData.foods.filter(item => !orderedIds.has(Number(item.id))).map(item => ({ ...item }))
+    const foods = productBackend.getFoods()
+    const candidates = foods.filter(item => !orderedIds.has(Number(item.id))).map(item => ({ ...item }))
     for (let i = candidates.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1))
       const temp = candidates[i]
@@ -225,7 +243,7 @@ const pageConfig = {
     uni.navigateTo({ url: `/pages/pay/pay?amount=${order.total}&existing=${order.id}` })
   },
   addRecommended(e) {
-    const selectedFood = foodData.foods.find(item => item.id === Number(e.currentTarget.dataset.id))
+    const selectedFood = productBackend.getFoodById(e.currentTarget.dataset.id)
     if (!selectedFood) return
     this.setData({ selectedFood, showSpecSheet: true })
   },
@@ -248,7 +266,7 @@ const pageConfig = {
     }
   },
   reviewOrder() {
-    if (this.order.reviewed || this.order.review) {
+    if (hasOrderReview(this.order)) {
       uni.showToast({ title: '该订单已评价', icon: 'none' })
       return
     }

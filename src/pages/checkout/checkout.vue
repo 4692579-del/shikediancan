@@ -93,6 +93,7 @@ import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
 import membership from '../../utils/membership.js'
 import orderBackend from '../../utils/order-backend.js'
+import benefitBackend from '../../utils/benefit-backend.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -127,6 +128,14 @@ const pageConfig = {
   },
   // 鍔犺浇璐墿杞︺€佺敤鎴烽€夊畾鍦板潃銆佷紭鎯犲埜鍜屼細鍛樻潈鐩娿€?
   onShow() {
+    this.renderCheckout()
+    if (store.isLogin()) {
+      benefitBackend.syncBenefits()
+        .then(() => this.renderCheckout())
+        .catch(err => console.error('sync benefits failed', err))
+    }
+  },
+  renderCheckout() {
     const cart = store.getCart().filter(item => item.checked)
     const addresses = store.getAddresses()
     const defaultAddress = store.getDefaultAddress()

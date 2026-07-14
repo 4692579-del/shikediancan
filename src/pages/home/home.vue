@@ -138,16 +138,16 @@
 import adaptPage from '@/utils/page-adapter.js'
 // 首页：展示地址、分类、轮播、推荐商品与店铺，并维护顶部收起和回顶交互。
 
-import data from '../../utils/data.js'
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
+import productBackend from '../../utils/product-backend.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
     address: '请选择收货地址',
-    categories: data.categories,
-    foods: data.foods.slice(0, 6),
-    shops: data.shops,
+    categories: productBackend.getCategories(),
+    foods: productBackend.getFoods().slice(0, 6),
+    shops: productBackend.getShops(),
     cartCount: 0,
     currentBanner: 0,
     selectedFood: null,
@@ -160,6 +160,7 @@ const pageConfig = {
   },
   onLoad() {
     this.setData({ statusHeight: getApp().globalData.statusBarHeight })
+    this.syncProductData()
   },
   // 每次返回首页时同步当前选择地址、购物车数量和全局主题。
   onShow() {
@@ -213,12 +214,29 @@ const pageConfig = {
   // 首页加号只打开规格面板，最终加购由公共组件完成。
   addFood(e) {
     if (!auth.requireLogin('/pages/home/home')) return
-    const selectedFood = data.foods.find(item => item.id === Number(e.currentTarget.dataset.id))
+    const selectedFood = productBackend.getFoodById(e.currentTarget.dataset.id)
     this.setData({ selectedFood, showSpecSheet: true })
   },
   closeSpecSheet() { this.setData({ showSpecSheet: false }) },
   specAdded(e) { this.setData({ cartCount: e.detail.count }) },
-  bannerChange(e) { this.setData({ currentBanner: e.detail.current }) }
+  bannerChange(e) { this.setData({ currentBanner: e.detail.current }) },
+  syncProductData() {
+    const cached = productBackend.getSnapshot()
+    this.setData({
+      categories: cached.categories,
+      foods: cached.foods.slice(0, 6),
+      shops: cached.shops
+    })
+    productBackend.syncProducts().then(productData => {
+      this.setData({
+        categories: productData.categories,
+        foods: productData.foods.slice(0, 6),
+        shops: productData.shops
+      })
+    }).catch(err => {
+      console.error('sync products failed', err)
+    })
+  }
 }
 
 export default adaptPage(pageConfig)

@@ -2,6 +2,7 @@
 import store from './utils/store.js'
 import paymentCountdown from './utils/payment-countdown.js'
 import membership from './utils/membership.js'
+import productBackend from './utils/product-backend.js'
 
 export default {
   globalData: { statusBarHeight: 20, navBarHeight: 44 },
@@ -10,6 +11,7 @@ export default {
     this.globalData.statusBarHeight = system.statusBarHeight || 20
     this.globalData.navBarHeight = 44
     store.seed()
+    productBackend.syncProducts().catch(err => console.error('sync products failed', err))
     membership.syncCurrent()
     paymentCountdown.normalizeOrders()
   },

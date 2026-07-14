@@ -1,0 +1,51 @@
+{
+  "bsonType": "object",
+  "required": ["userId", "paymentId", "tier", "planId", "amount", "status"],
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": {
+      "description": "会员订单ID"
+    },
+    "userId": {
+      "bsonType": "string",
+      "description": "用户ID"
+    },
+    "paymentId": {
+      "bsonType": "string",
+      "description": "业务订单号"
+    },
+    "tier": {
+      "bsonType": "string",
+      "description": "会员等级：plus/pro"
+    },
+    "planId": {
+      "bsonType": "string",
+      "description": "会员方案ID"
+    },
+    "amount": {
+      "bsonType": "double",
+      "description": "实付金额"
+    },
+    "status": {
+      "bsonType": "string",
+      "description": "订单状态：unpaid/paid/cancelled"
+    },
+    "paymentDeadline": {
+      "bsonType": "long",
+      "description": "支付截止时间"
+    },
+    "createdAt": {
+      "bsonType": "long",
+      "description": "创建时间"
+    },
+    "updatedAt": {
+      "bsonType": "long",
+      "description": "更新时间"
+    }
+  }
+}

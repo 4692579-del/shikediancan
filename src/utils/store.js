@@ -1,6 +1,6 @@
 // 本地状态仓库：封装缓存读写，统一管理地址、购物车、订单和基础初始化。
 
-import data from './data.js'
+import productBackend from './product-backend.js'
 // 初始化必要缓存，并清除早期测试版本遗留的默认地址和无效优惠券。
 function seed() {
   if (!uni.getStorageSync('sk_addresses')) {
@@ -18,7 +18,7 @@ function seed() {
     uni.setStorageSync('sk_coupons', [])
     uni.removeStorageSync('sk_selected_coupon')
   } else if (!Array.isArray(uni.getStorageSync('sk_coupons'))) {
-    uni.setStorageSync('sk_coupons', data.coupons)
+    uni.setStorageSync('sk_coupons', [])
   }
   if (!uni.getStorageSync('sk_cart')) uni.setStorageSync('sk_cart', [])
   if (!uni.getStorageSync('sk_orders')) uni.setStorageSync('sk_orders', [])
@@ -34,7 +34,7 @@ function get(key, fallback) {
   const value = uni.getStorageSync(key)
   if (value === '' || value === undefined) return fallback
   const hydrateItem = item => {
-    const food = data.foods.find(row => row.id === Number(item && item.id))
+    const food = productBackend.getFoodById(Number(item && item.id))
     return food ? { ...item, icon: food.icon, bg: food.bg } : item
   }
   if (key === 'sk_cart' && Array.isArray(value)) return value.map(hydrateItem)

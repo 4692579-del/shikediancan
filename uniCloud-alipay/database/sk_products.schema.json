@@ -1,0 +1,30 @@
+{
+  "bsonType": "object",
+  "required": ["id", "name", "category"],
+  "permission": {
+    "read": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": { "description": "ID，系统自动生成" },
+    "id": { "bsonType": "int", "description": "商品编号" },
+    "shopId": { "bsonType": "int", "description": "所属店铺编号" },
+    "name": { "bsonType": "string", "description": "商品名称" },
+    "desc": { "bsonType": "string", "description": "商品简介" },
+    "price": { "bsonType": "double", "description": "当前价格" },
+    "oldPrice": { "bsonType": "double", "description": "划线价" },
+    "category": { "bsonType": "string", "description": "所属分类" },
+    "sales": { "bsonType": "int", "description": "销量" },
+    "rating": { "bsonType": "double", "description": "评分" },
+    "icon": { "bsonType": "string", "description": "商品图片路径" },
+    "bg": { "bsonType": "string", "description": "商品图片背景色" },
+    "tag": { "bsonType": "string", "description": "商品标签" },
+    "detail": { "bsonType": "object", "description": "商品详情" },
+    "status": { "bsonType": "string", "description": "商品状态" },
+    "sort": { "bsonType": "int", "description": "排序" },
+    "createdAt": { "bsonType": "long", "description": "创建时间" },
+    "updatedAt": { "bsonType": "long", "description": "更新时间" }
+  }
+}

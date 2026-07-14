@@ -88,14 +88,17 @@ const pageConfig = {
       manageRight: Math.max(96, windowInfo.windowWidth - menu.left + 12)
     })
   },
-  async onShow() {
-    try {
-      await orderBackend.fetchCart()
-      await favoriteBackend.fetchFavorites()
-    } catch (err) {
-      console.error('fetch cart failed', err)
-    }
+  onShow() {
     this.refresh()
+    Promise.allSettled([
+      orderBackend.fetchCart(),
+      favoriteBackend.fetchFavorites()
+    ]).then(results => {
+      results.forEach(item => {
+        if (item.status === 'rejected') console.error('fetch cart page data failed', item.reason)
+      })
+      this.refresh()
+    })
   },
   // 浠庣紦瀛橀噸鏂拌鍙栬喘鐗╄溅骞惰绠楀叏閫夈€佷欢鏁板拰鍚堣閲戦銆?
   refresh() {

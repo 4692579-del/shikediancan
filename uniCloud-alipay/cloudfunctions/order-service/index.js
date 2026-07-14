@@ -94,6 +94,15 @@ async function listOrders(userId) {
     .sort((a, b) => Number(b.createdAtTimestamp || 0) - Number(a.createdAtTimestamp || 0))
 }
 
+async function listReviews(userId) {
+  await autoCancelExpired(userId)
+  const result = await orders.where({ userId, status: 'done', reviewed: true, deletedAt: 0 }).get()
+  return (result.data || [])
+    .map(toClientOrder)
+    .filter(item => item.review && typeof item.review === 'object' && Object.keys(item.review).length)
+    .sort((a, b) => Number(b.reviewedAt || b.updatedAt || 0) - Number(a.reviewedAt || a.updatedAt || 0))
+}
+
 async function getOrder(userId, id) {
   await autoCancelExpired(userId)
   const result = await orders.doc(id).get()
@@ -164,6 +173,10 @@ exports.main = async (event = {}) => {
     return ok({ orders: await listOrders(userId) })
   }
 
+  if (action === 'review.list') {
+    return ok({ reviews: await listReviews(userId) })
+  }
+
   if (action === 'order.get') {
     const order = await getOrder(userId, String(event.id || ''))
     if (!order) return fail(404, '订单不存在')
@@ -213,7 +226,7 @@ exports.main = async (event = {}) => {
     const order = await getOrder(userId, id)
     if (!order) return fail(404, '订单不存在')
     if (order.status !== 'done') return fail(1004, '当前订单暂不可评价')
-    if (order.reviewed || (order.review && Object.keys(order.review).length)) return fail(1005, '该订单已评价')
+    if (order.reviewed === true) return fail(1005, '该订单已评价')
 
     // 兼容旧订单：旧数据中 review 可能是 null。uniCloud 更新嵌套对象时会拆成
     // review.xxx 的形式，因此必须先把 review 修正为空对象，再写入完整评价字段。

@@ -25,6 +25,7 @@ import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
 import membership from '../../utils/membership.js'
 import wallet from '../../utils/wallet.js'
+import benefitBackend from '../../utils/benefit-backend.js'
 const pageConfig = {
   data: { statusHeight: 20, id: '', method: '快捷支付', amount: '0.00', walletDiscount: '0.00', businessType: 'food', planName: '', memberTier: 'plus', memberShortName: 'PLUS', membershipResultTitle: 'PLUS 开通成功', memberDiscountText: '95折', freeDelivery: false, themeCount: 2, expireText: '', couponCount: 0 },
   // 根据业务类型读取支付结果，准备减免金额和结果文案。
@@ -44,6 +45,7 @@ const pageConfig = {
       return
     }
     if (options.type === 'membership') {
+      benefitBackend.syncBenefits().catch(err => console.error('sync benefits on pay result failed', err))
       const payment = membership.getPayment(options.id)
       const current = membership.getMembership()
       const memberTier = current ? current.tier : payment && payment.tier || 'plus'

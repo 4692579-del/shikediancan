@@ -1,0 +1,27 @@
+{
+  "bsonType": "object",
+  "required": ["id", "name"],
+  "permission": {
+    "read": true,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": { "description": "ID，系统自动生成" },
+    "id": { "bsonType": "int", "description": "店铺编号" },
+    "name": { "bsonType": "string", "description": "店铺名称" },
+    "desc": { "bsonType": "string", "description": "店铺简介" },
+    "rating": { "bsonType": "double", "description": "评分" },
+    "time": { "bsonType": "string", "description": "配送时间" },
+    "distance": { "bsonType": "string", "description": "距离" },
+    "delivery": { "bsonType": "double", "description": "配送费" },
+    "min": { "bsonType": "double", "description": "起送价" },
+    "icon": { "bsonType": "string", "description": "店铺图标文字" },
+    "color": { "bsonType": "string", "description": "店铺图标背景色" },
+    "notice": { "bsonType": "string", "description": "店铺公告" },
+    "sort": { "bsonType": "int", "description": "排序" },
+    "createdAt": { "bsonType": "long", "description": "创建时间" },
+    "updatedAt": { "bsonType": "long", "description": "更新时间" }
+  }
+}

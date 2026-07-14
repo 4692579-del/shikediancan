@@ -97,6 +97,10 @@ import store from '../../utils/store.js'
 import paymentCountdown from '../../utils/payment-countdown.js'
 import orderBackend from '../../utils/order-backend.js'
 
+function hasOrderReview(order) {
+  return Boolean(order && order.reviewed === true)
+}
+
 const labels = {
   pageTitle: '评价订单',
   shopMark: '食',
@@ -154,7 +158,7 @@ const pageConfig = {
       setTimeout(() => uni.navigateBack(), 500)
       return
     }
-    if (order.reviewed || order.review) {
+    if (hasOrderReview(order)) {
       uni.showToast({ title: '该订单已评价', icon: 'none' })
       setTimeout(() => uni.navigateBack(), 650)
       return

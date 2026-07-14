@@ -24,6 +24,7 @@ import adaptPage from '@/utils/page-adapter.js'
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
 import membership from '../../utils/membership.js'
+import benefitBackend from '../../utils/benefit-backend.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -40,9 +41,22 @@ const pageConfig = {
     if (!auth.guardPage(target)) return
     this.setData({ statusHeight: getApp().globalData.statusBarHeight, selectMode: options.select === '1', amount: Number(options.amount || 0) })
   },
-  onShow() { this.refresh() },
+  onShow() {
+    this.renderCoupons()
+    this.refresh()
+  },
   // 按使用状态和订单金额整理当前可展示的优惠券。
-  refresh() {
+  async refresh() {
+    if (store.isLogin()) {
+      try {
+        await benefitBackend.fetchCoupons()
+      } catch (err) {
+        console.error('fetch coupons failed', err)
+      }
+    }
+    this.renderCoupons()
+  },
+  renderCoupons() {
     const coupons = store.get('sk_coupons', [])
     this.setData({
       coupons,

@@ -88,11 +88,11 @@
 import adaptPage from '@/utils/page-adapter.js'
 // 鍟嗗搧璇︽儏椤碉細灞曠ず鍟嗗搧淇℃伅锛屽鐞嗚鏍笺€佹暟閲忋€佹敹钘忓強鍔犲叆璐墿杞︺€?
 
-import data from '../../utils/data.js'
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
 import orderBackend from '../../utils/order-backend.js'
 import favoriteBackend from '../../utils/favorite-backend.js'
+import productBackend from '../../utils/product-backend.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -111,8 +111,16 @@ const pageConfig = {
     showSpecSheet: false
   },
   // 根据商品 id 读取详情数据，找不到商品时返回上一页。
-  onLoad(options) {
-    const food = data.foods.find(item => item.id === Number(options.id))
+  async onLoad(options) {
+    let food = productBackend.getFoodById(options.id)
+    if (!food) {
+      try {
+        await productBackend.syncProducts()
+        food = productBackend.getFoodById(options.id)
+      } catch (err) {
+        console.error('sync products failed', err)
+      }
+    }
     if (!food) {
       uni.showToast({ title: '商品不存在', icon: 'none' })
       setTimeout(() => uni.navigateBack(), 500)
@@ -121,20 +129,29 @@ const pageConfig = {
     this.setData({
       statusHeight: getApp().globalData.statusBarHeight,
       food,
-      detail: data.foodDetails[food.id],
+      detail: productBackend.getDetailById(food.id) || {},
       displayPrice: food.price.toFixed(1),
       showSpecSheet: options.openSpec === '1'
     })
+    productBackend.fetchProductDetail(food.id).then(latest => {
+      if (!latest) return
+      this.setData({
+        food: latest,
+        detail: productBackend.getDetailById(latest.id) || {},
+        displayPrice: (latest.price + (this.specs.find(item => item.name === this.selectedSpec)?.extra || 0)).toFixed(1)
+      })
+    }).catch(err => console.error('load product detail failed', err))
   },
-  async onShow() {
+  onShow() {
     if (!this.food) return
+    this.syncPageState()
     if (store.isLogin()) {
-      try {
-        await favoriteBackend.fetchFavorites()
-      } catch (err) {
-        console.error('fetch favorites failed', err)
-      }
+      favoriteBackend.fetchFavorites()
+        .then(() => this.syncPageState())
+        .catch(err => console.error('fetch favorites failed', err))
     }
+  },
+  syncPageState() {
     this.setData({
       favorite: favoriteBackend.getCachedIds().includes(this.food.id),
       cartCount: store.isLogin() ? store.cartSummary().count : 0
