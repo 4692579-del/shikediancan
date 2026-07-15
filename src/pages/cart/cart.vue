@@ -1,24 +1,24 @@
 ﻿<template>
-<view :style="globalThemeStyle" class="page cart-page">
+<view :style="globalThemeStyle" :class="`page cart-page ${elderMode ? 'elder-mode' : ''}`">
   <view class="safe-nav" :style="`--status-height:${statusHeight}px`">
     <view class="nav-row">
       <button hover-class="none" class="nav-back page-back" @tap="back"><image src="/static/assets/icons/back.svg" mode="aspectFit" /></button>
-      <text class="nav-title">购物车</text>
-      <button v-if="cart.length" hover-class="none" class="manage-btn" :style="`right:${manageRight}px`" @tap="toggleManage">{{managing ? '退出管理' : '管理'}}</button>
+      <text class="nav-title">{{text.title}}</text>
+      <button v-if="cart.length" hover-class="none" class="manage-btn" :style="`right:${manageRight}px`" @tap="toggleManage">{{managing ? text.exitManage : text.manage}}</button>
     </view>
   </view>
   <scroll-view scroll-y :bounces="false" :show-scrollbar="false" class="cart-scroll">
     <view v-if="cart.length" class="cart-content">
       <view class="delivery-card card">
         <view class="delivery-icon"><image src="/static/assets/icons/delivery.svg" mode="aspectFit" /></view>
-        <view><text class="delivery-title">预计 30 分钟送达</text><text class="delivery-sub">由食刻专送提供配送服务</text></view>
+        <view><text class="delivery-title">{{text.delivery}}</text><text class="delivery-sub">{{text.deliverySub}}</text></view>
       </view>
       <view class="shop-cart card">
       <view class="shop-line"><button hover-class="none" :class="`check ${allChecked ? 'checked' : ''}`" @tap="toggleAll"><image src="/static/assets/icons/check.svg" mode="aspectFit" /></button><text class="shop-name">食刻·品质厨房</text><text class="shop-more">›</text></view>
       <view v-for="(item, index) in cart" :key="item.key" class="cart-swipe-row">
         <view class="cart-item-actions">
           <button hover-class="none" class="swipe-favorite" :data-key="item.key" @tap.stop="favoriteCartItem"><image src="/static/assets/icons/heart.svg" mode="aspectFit" /><text>收藏</text></button>
-          <button hover-class="none" class="swipe-delete" :data-key="item.key" @tap.stop="deleteCartItem"><image src="/static/assets/icons/delete.svg" mode="aspectFit" /><text>删除</text></button>
+          <button hover-class="none" class="swipe-delete" :data-key="item.key" @tap.stop="deleteCartItem"><image src="/static/assets/icons/delete.svg" mode="aspectFit" /><text>{{text.remove}}</text></button>
         </view>
         <view :class="`cart-item cart-item-track ${swipedCartKey === item.key ? 'swiped' : ''}`" :data-key="item.key" @touchstart="cartSwipeStart" @touchend="cartSwipeEnd">
           <button hover-class="none" :class="`check ${item.checked ? 'checked' : ''}`" :data-key="item.key" @tap="toggleItem"><image src="/static/assets/icons/check.svg" mode="aspectFit" /></button>
@@ -39,21 +39,21 @@
       </view>
       </view>
       <view class="cart-offer card">
-        <view><text class="offer-tag">减</text><text>店铺满减</text></view><text class="orange">已减 ¥8.00</text>
+        <view><text class="offer-tag">减</text><text>{{text.discount}}</text></view><text class="orange">- ¥8.00</text>
       </view>
     </view>
     <view v-else class="empty">
       <view class="empty-icon"><image src="/static/assets/icons/cart.svg" mode="aspectFit" /></view>
-      <view class="empty-title">购物车还是空的</view>
+      <view class="empty-title">{{text.empty}}</view>
       <view class="empty-desc">好吃的都在等你，去挑几样吧</view>
     </view>
   </scroll-view>
   <view v-if="cart.length" class="settle-bar">
     <button hover-class="none" :class="`check ${allChecked ? 'checked' : ''}`" @tap="toggleAll"><image src="/static/assets/icons/check.svg" mode="aspectFit" /></button>
-    <text class="all-label">全选</text>
-    <view v-if="!managing" class="total"><text>合计 </text><text class="total-price">¥{{total}}</text><text class="total-tip">已优惠 ¥8</text></view>
-    <button v-if="!managing" hover-class="none" class="settle-btn" @tap="checkout">去结算({{count}})</button>
-    <button v-else hover-class="none" class="settle-btn delete-btn" @tap="deleteSelected">删除 ({{count}})</button>
+    <text class="all-label">{{text.all}}</text>
+    <view v-if="!managing" class="total"><text>{{text.total}} </text><text class="total-price">¥{{total}}</text><text class="total-tip">- ¥8</text></view>
+    <button v-if="!managing" hover-class="none" class="settle-btn" @tap="checkout">{{text.settle}}({{count}})</button>
+    <button v-else hover-class="none" class="settle-btn delete-btn" @tap="deleteSelected">{{text.remove}} ({{count}})</button>
   </view>
 </view>
 </template>
@@ -66,6 +66,8 @@ import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
 import orderBackend from '../../utils/order-backend.js'
 import favoriteBackend from '../../utils/favorite-backend.js'
+import i18n from '../../utils/i18n.js'
+import elderMode from '../../utils/elder-mode.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -75,7 +77,9 @@ const pageConfig = {
     total: 0,
     allChecked: true,
     managing: false,
-    swipedCartKey: ''
+    swipedCartKey: '',
+    elderMode: false,
+    text: i18n.page('cart')
   },
   onLoad() {
     if (!auth.guardPage('/pages/cart/cart')) return
@@ -89,6 +93,7 @@ const pageConfig = {
     })
   },
   onShow() {
+    this.setData({ text: i18n.page('cart'), elderMode: elderMode.isEnabled() })
     this.refresh()
     Promise.allSettled([
       orderBackend.fetchCart(),
@@ -504,6 +509,116 @@ button.check,
   font-size:16rpx!important;
   line-height:18rpx!important;
   white-space:nowrap!important;
+}
+
+/* 长辈模式：购物车强化商品、价格、数量和结算按钮，弱化次要说明。 */
+.cart-page.elder-mode .cart-content{
+  padding:26rpx 26rpx 210rpx;
+}
+.cart-page.elder-mode .delivery-card{
+  padding:28rpx;
+  margin-bottom:22rpx;
+  border-radius:38rpx;
+}
+.cart-page.elder-mode .delivery-icon{
+  width:86rpx;
+  height:86rpx;
+  margin-right:20rpx;
+}
+.cart-page.elder-mode .delivery-icon image{
+  width:48rpx;
+  height:48rpx;
+}
+.cart-page.elder-mode .delivery-title{
+  font-size:32rpx;
+  font-weight:800;
+}
+.cart-page.elder-mode .delivery-sub{
+  font-size:23rpx;
+}
+.cart-page.elder-mode .shop-cart{
+  padding:28rpx;
+  border-radius:38rpx;
+}
+.cart-page.elder-mode .shop-line{
+  padding-bottom:26rpx;
+}
+.cart-page.elder-mode .shop-name{
+  font-size:34rpx;
+}
+.cart-page.elder-mode .cart-item{
+  padding:30rpx 0;
+}
+.cart-page.elder-mode .item-visual{
+  width:156rpx;
+  height:156rpx;
+  border-radius:32rpx;
+}
+.cart-page.elder-mode .item-main{
+  padding-left:20rpx;
+}
+.cart-page.elder-mode .item-name{
+  font-size:32rpx;
+}
+.cart-page.elder-mode .item-spec{
+  font-size:21rpx;
+  margin:10rpx 0 18rpx;
+}
+.cart-page.elder-mode .item-price{
+  font-size:38rpx;
+}
+.cart-page.elder-mode .stepper{
+  width:174rpx;
+  height:58rpx;
+  flex-basis:174rpx;
+}
+.cart-page.elder-mode .stepper.single{
+  width:122rpx;
+  flex-basis:122rpx;
+}
+.cart-page.elder-mode .stepper button{
+  width:58rpx!important;
+  min-width:58rpx!important;
+  max-width:58rpx!important;
+  height:58rpx;
+  font-size:32rpx;
+}
+.cart-page.elder-mode .count-input{
+  width:58rpx;
+  height:58rpx;
+  flex-basis:58rpx;
+  font-size:26rpx;
+  line-height:58rpx;
+}
+.cart-page.elder-mode .cart-offer{
+  padding:28rpx;
+  font-size:28rpx;
+}
+.cart-page.elder-mode .settle-bar{
+  left:30rpx;
+  right:30rpx;
+  min-height:124rpx;
+  padding:14rpx 14rpx 14rpx 22rpx;
+}
+.cart-page.elder-mode .all-label{
+  font-size:26rpx;
+}
+.cart-page.elder-mode .total>text:first-child{
+  font-size:25rpx;
+}
+.cart-page.elder-mode .total-price{
+  font-size:40rpx;
+}
+.cart-page.elder-mode .settle-btn{
+  min-width:218rpx;
+  height:96rpx;
+  font-size:30rpx;
+}
+.cart-page.elder-mode .empty-title{
+  font-size:36rpx;
+}
+.cart-page.elder-mode .empty-desc{
+  font-size:27rpx;
 }
 
 </style>

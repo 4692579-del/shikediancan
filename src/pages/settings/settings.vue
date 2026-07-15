@@ -1,16 +1,18 @@
-<template>
-<view :style="globalThemeStyle" class="page"><view class="safe-nav" :style="`--status-height:${statusHeight}px`"><view class="nav-row"><button hover-class="none" class="nav-back page-back" @tap="back"><image src="/static/assets/icons/back.svg" mode="aspectFit" /></button><text class="nav-title">设置</text><view class="nav-back"></view></view></view>
+﻿<template>
+<view :style="globalThemeStyle" class="page"><view class="safe-nav" :style="`--status-height:${statusHeight}px`"><view class="nav-row"><button hover-class="none" class="nav-back page-back" @tap="back"><image src="/static/assets/icons/back.svg" mode="aspectFit" /></button><text class="nav-title">{{text.title}}</text><view class="nav-back"></view></view></view>
 <view class="settings-content">
-  <view class="setting-group notification-group card"><text class="group-title">消息通知</text><button hover-class="none" class="setting-row"><text>订单状态通知</text><view :class="`switch ${notice ? 'on' : ''}`" data-field="notice" @tap="toggle"><view></view></view></button><button hover-class="none" class="setting-row"><text>优惠活动通知</text><view :class="`switch ${promotion ? 'on' : ''}`" data-field="promotion" @tap="toggle"><view></view></view></button><button hover-class="none" class="setting-row"><text>声音与振动</text><view :class="`switch ${vibration ? 'on' : ''}`" data-field="vibration" @tap="toggle"><view></view></view></button></view>
-  <view class="setting-group card"><text class="group-title">通用</text><button hover-class="none" class="setting-row" @tap="copyUsername"><text>用户名</text><text>{{user && user.username ? user.username : '未登录'}} ›</text></button><button hover-class="none" class="setting-row" @tap="openAccountSecurity"><text>账号与支付安全</text><text>›</text></button><button hover-class="none" class="setting-row" @tap="openPersonalization"><text>个性化</text><text>›</text></button><button hover-class="none" class="setting-row" @touchstart="startCacheHold" @touchend="cancelCacheHold" @touchcancel="cancelCacheHold" @tap="clearCache"><text>清除缓存</text><text>{{cacheSize}} ›</text></button></view>
-  <view class="setting-group card"><text class="group-title">协议与隐私</text><button hover-class="none" class="setting-row" data-type="user" @tap="openAgreement"><text>用户服务协议</text><text>›</text></button><button hover-class="none" class="setting-row" data-type="privacy" @tap="openAgreement"><text>隐私政策</text><text>›</text></button></view>
-  <button hover-class="none" v-if="user" class="logout" @tap="logout">退出登录</button><button hover-class="none" v-else class="primary-btn" @tap="login">登录账号</button>
+  <view class="setting-group card"><text class="group-title">{{text.general}}</text><button hover-class="none" class="setting-row" @tap="copyUsername"><text>{{text.username}}</text><text>{{user && user.username ? user.username : common.notLogin}} ›</text></button><button hover-class="none" class="setting-row" @tap="openAccountSecurity"><text>{{text.accountSecurity}}</text><text>›</text></button><button hover-class="none" class="setting-row" @tap="openPersonalization"><text>{{text.personalization}}</text><text>›</text></button><button hover-class="none" class="setting-row" @touchstart="startCacheHold" @touchend="cancelCacheHold" @touchcancel="cancelCacheHold" @tap="clearCache"><text>{{text.cache}}</text><text>{{cacheSize}} ›</text></button></view>
+  <view class="setting-group notification-group card"><text class="group-title">{{text.notification}}</text><button hover-class="none" class="setting-row" data-type="order" @tap="openNotificationSettings"><text>{{text.orderTradeNotice}}</text><text>›</text></button><button hover-class="none" class="setting-row" data-type="service" @tap="openNotificationSettings"><text>{{text.benefitServiceNotice}}</text><text>›</text></button></view>
+  <view class="setting-group card"><text class="group-title">{{text.accessibility}}</text><button hover-class="none" class="setting-row" @tap="openElderMode"><text>{{text.elderMode}}</text><text>›</text></button><button hover-class="none" class="setting-row" @tap="openFontSize"><text>{{text.fontSize}}</text><text>›</text></button><button hover-class="none" class="setting-row" @tap="openLanguage"><text>{{text.language}}</text><text>{{languageName}} ›</text></button></view>
+  <view class="setting-group card"><text class="group-title">{{text.privacyTitle}}</text><button hover-class="none" class="setting-row" data-type="user" @tap="openAgreement"><text>{{text.userAgreement}}</text><text>›</text></button><button hover-class="none" class="setting-row" data-type="privacy" @tap="openAgreement"><text>{{text.privacyPolicy}}</text><text>›</text></button></view>
+  <button hover-class="none" v-if="user" class="switch-account-btn">切换账号</button>
+  <button hover-class="none" v-if="user" class="logout" @tap="logout">{{text.logout}}</button><button hover-class="none" v-else class="primary-btn" @tap="login">{{text.login}}</button>
 </view></view>
 </template>
 
 <script>
 import adaptPage from '@/utils/page-adapter.js'
-// 设置页：管理通知偏好、头像昵称、主题、缓存、登录状态及测试用会员重置。
+// 璁剧疆椤碉細绠＄悊閫氱煡鍋忓ソ銆佸ご鍍忔樀绉般€佷富棰樸€佺紦瀛樸€佺櫥褰曠姸鎬佸強娴嬭瘯鐢ㄤ細鍛橀噸缃€?
 
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
@@ -19,12 +21,7 @@ import account from '../../utils/account.js'
 import membership from '../../utils/membership.js'
 import cloud from '../../utils/cloud.js'
 import benefitBackend from '../../utils/benefit-backend.js'
-const NOTIFICATION_SETTINGS_KEY = 'sk_notification_settings'
-const DEFAULT_NOTIFICATION_SETTINGS = {
-  notice: true,
-  promotion: true,
-  vibration: true
-}
+import i18n from '../../utils/i18n.js'
 
 function readBlobAsDataUrl(blob) {
   return new Promise((resolve, reject) => {
@@ -44,8 +41,8 @@ function loadImage(url) {
   })
 }
 
-// H5 端直传 uniCloud 云存储可能因上传密钥失败而不可用。
-// 这里将用户选择的图片压缩成头像尺寸，再交给云函数写入用户资料表，保证头像资料真正后端化。
+// H5 绔洿浼?uniCloud 浜戝瓨鍌ㄥ彲鑳藉洜涓婁紶瀵嗛挜澶辫触鑰屼笉鍙敤銆?
+// 杩欓噷灏嗙敤鎴烽€夋嫨鐨勫浘鐗囧帇缂╂垚澶村儚灏哄锛屽啀浜ょ粰浜戝嚱鏁板啓鍏ョ敤鎴疯祫鏂欒〃锛屼繚璇佸ご鍍忚祫鏂欑湡姝ｅ悗绔寲銆?
 async function filePathToAvatarDataUrl(filePath) {
   if (!filePath) throw new Error('EMPTY_FILE')
   if (/^data:image\//i.test(filePath)) return filePath
@@ -77,42 +74,29 @@ async function filePathToAvatarDataUrl(filePath) {
 }
 
 const pageConfig = {
-  data: { statusHeight: 20, user: null, profileTheme: profileTheme.getTheme('black'), notice: true, promotion: true, vibration: true, cacheSize: '2.4 MB' },
+  data: { statusHeight: 20, user: null, profileTheme: profileTheme.getTheme('black'), cacheSize: '2.4 MB', text: i18n.page('settings'), common: i18n.page('common'), languageName: i18n.getLocaleName() },
   onLoad() {
     if (!auth.guardPage('/pages/settings/settings')) return
     this.setData({ statusHeight: getApp().globalData.statusBarHeight })
   },
-  // 从缓存恢复通知开关和当前用户资料。
   onShow() {
-    const notificationSettings = {
-      ...DEFAULT_NOTIFICATION_SETTINGS,
-      ...store.get(NOTIFICATION_SETTINGS_KEY, {})
-    }
     this.setData({
       user: store.get('sk_user', null),
       profileTheme: profileTheme.getTheme(store.get('sk_profile_theme', 'black')),
-      ...notificationSettings
+      text: i18n.page('settings'),
+      common: i18n.page('common'),
+      languageName: i18n.getLocaleName()
     })
   },
   back() { uni.navigateBack() },
-  // 仅开关本身触发通知设置修改，并立即持久化。
-  toggle(e) {
-    const field = e.currentTarget.dataset.field
-    if (!Object.prototype.hasOwnProperty.call(DEFAULT_NOTIFICATION_SETTINGS, field)) return
-    const nextSettings = {
-      notice: this.notice,
-      promotion: this.promotion,
-      vibration: this.vibration,
-      [field]: !this[field]
-    }
-    this.setData(nextSettings)
-    store.set(NOTIFICATION_SETTINGS_KEY, nextSettings)
-    uni.showToast({ title: '设置已保存', icon: 'none' })
+  openNotificationSettings(e) {
+    const type = e.currentTarget.dataset.type || 'order'
+    uni.navigateTo({ url: `/pages/notification-settings/notification-settings?type=${type}` })
   },
-  // 头像改为用户自定义上传：选择本地图片后压缩为头像数据，再通过云函数写入用户资料表。
+  // 澶村儚鏀逛负鐢ㄦ埛鑷畾涔変笂浼狅細閫夋嫨鏈湴鍥剧墖鍚庡帇缂╀负澶村儚鏁版嵁锛屽啀閫氳繃浜戝嚱鏁板啓鍏ョ敤鎴疯祫鏂欒〃銆?
   async changeAvatar() {
     if (!this.user || !this.user.uid) {
-      uni.showToast({ title: '请先重新登录账号', icon: 'none' })
+      uni.showToast({ title: '璇峰厛閲嶆柊鐧诲綍璐﹀彿', icon: 'none' })
       return
     }
     let loadingShown = false
@@ -172,6 +156,15 @@ const pageConfig = {
   openPersonalization() {
     uni.navigateTo({ url: '/pages/personalization/personalization' })
   },
+  openLanguage() {
+    uni.navigateTo({ url: '/pages/language/language' })
+  },
+  openFontSize() {
+    uni.navigateTo({ url: '/pages/font-size/font-size' })
+  },
+  openElderMode() {
+    uni.navigateTo({ url: '/pages/elder-mode/elder-mode' })
+  },
   copyUsername() {
     const username = this.user && this.user.username ? this.user.username : ''
     if (!username) {
@@ -187,7 +180,7 @@ const pageConfig = {
     const type = e.currentTarget.dataset.type === 'privacy' ? 'privacy' : 'user'
     uni.navigateTo({ url: `/pages/legal/legal?type=${type}` })
   },
-  // 长按清除缓存三秒触发课程测试用的会员重置隐藏功能。
+  // 闀挎寜娓呴櫎缂撳瓨涓夌瑙﹀彂璇剧▼娴嬭瘯鐢ㄧ殑浼氬憳閲嶇疆闅愯棌鍔熻兘銆?
   startCacheHold() {
     this.cancelCacheHold()
     this.cacheHoldTriggered = false
@@ -203,7 +196,7 @@ const pageConfig = {
       this.cacheHoldTimer = null
     }
   },
-  // 普通点击只模拟清除缓存，不删除订单、地址等业务数据。
+  // 鏅€氱偣鍑诲彧妯℃嫙娓呴櫎缂撳瓨锛屼笉鍒犻櫎璁㈠崟銆佸湴鍧€绛変笟鍔℃暟鎹€?
   clearCache() {
     if (this.cacheHoldTriggered) {
       this.cacheHoldTriggered = false
@@ -211,7 +204,7 @@ const pageConfig = {
     }
     uni.showModal({ title: '清除缓存', content: '不会清除登录、订单和地址信息', success: res => { if (res.confirm) { uni.removeStorageSync('sk_search_history'); this.setData({ cacheSize: '0 KB' }); uni.showToast({ title: '清理完成' }) } } })
   },
-  // 仅供开发测试：完整移除当前账号会员身份及会员订单。
+  // 浠呬緵寮€鍙戞祴璇曪細瀹屾暣绉婚櫎褰撳墠璐﹀彿浼氬憳韬唤鍙婁細鍛樿鍗曘€?
   async resetMembershipForTesting() {
     if (!this.user) return
     try {
@@ -238,15 +231,15 @@ export default adaptPage(pageConfig)
 </script>
 
 <style>
-.settings-content{padding:22rpx 24rpx}.setting-group{padding:10rpx 26rpx;margin-bottom:20rpx}.group-title{display:block;font-size:21rpx;color:#999;padding:18rpx 0 8rpx}.setting-row{width:100%;height:94rpx;display:flex;align-items:center;justify-content:space-between;border-bottom:1rpx solid #eee;text-align:left}.setting-row:last-child{border-bottom:0}.setting-row>text:last-child{color:#999;font-size:22rpx}.switch{width:88rpx;height:48rpx;border-radius:24rpx;background:#ddd;padding:5rpx}.switch view{width:38rpx;height:38rpx;border-radius:50%;background:#fff;transition:.2s}.switch.on{background:var(--orange)}.switch.on view{transform:translateX(40rpx)}.logout{width:100%;height:92rpx;border-radius:28rpx;background:#fff;color:#ff4d3d;margin-top:35rpx;font-weight:650}
+.settings-content{padding:22rpx 24rpx}.setting-group{padding:10rpx 26rpx;margin-bottom:20rpx}.group-title{display:block;font-size:21rpx;color:#999;padding:18rpx 0 8rpx}.setting-row{width:100%;height:94rpx;display:flex;align-items:center;justify-content:space-between;border-bottom:1rpx solid #eee;text-align:left}.setting-row:last-child{border-bottom:0}.setting-row>text:last-child{color:#999;font-size:22rpx}.switch{width:88rpx;height:48rpx;border-radius:24rpx;background:#ddd;padding:5rpx}.switch view{width:38rpx;height:38rpx;border-radius:50%;background:#fff;transition:.2s}.switch.on{background:var(--orange)}.switch.on view{transform:translateX(40rpx)}.logout,.switch-account-btn{width:100%;height:92rpx;border-radius:28rpx;background:#fff;color:#ff4d3d;margin-top:35rpx;font-weight:650}
 
 .setting-row{gap:20rpx}.setting-row>text:first-child{min-width:0}.setting-row>text:last-child{max-width:300rpx;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
-.switch{flex-shrink:0}.logout{height:86rpx}
-.setting-row{width:100%!important;max-width:none!important}.logout{width:100%!important}
+.switch{flex-shrink:0}.logout,.switch-account-btn{height:86rpx}
+.setting-row{width:100%!important;max-width:none!important}.logout,.switch-account-btn{width:100%!important}
 .switch{width:84rpx;height:46rpx;flex:0 0 84rpx;border-radius:23rpx;padding:5rpx;overflow:hidden;display:flex;align-items:center;justify-content:flex-start}
 .switch view{width:36rpx;height:36rpx;box-shadow:0 2rpx 6rpx rgba(0,0,0,.16);transition:transform .2s ease}
 .switch.on{justify-content:flex-end}.switch.on view{transform:none}
-.logout{display:flex;align-items:center;justify-content:center;line-height:1}
+.logout,.switch-account-btn{display:flex;align-items:center;justify-content:center;line-height:1}
 .page{
   min-height:100vh;
   height:auto;
@@ -257,6 +250,12 @@ export default adaptPage(pageConfig)
 
 .logout{
   border-radius:999rpx;
+}
+.switch-account-btn{
+  margin-top:34rpx;
+  margin-bottom:-16rpx;
+  border-radius:999rpx;
+  color:#222;
 }
 .profile-entry-right{
   margin-left:auto;
@@ -283,7 +282,7 @@ export default adaptPage(pageConfig)
   margin-left:auto;
 }
 
-/* 设置项保持轻量列表样式：文字缩小加粗，分割线只位于卡片内容区。 */
+/* 璁剧疆椤规敼涓烘洿鑸掑睍鐨勬棤鍒嗗壊绾垮垪琛細瀛楅噸鏀捐交銆佸瓧鍙风暐澧烇紝鏁翠綋鏇存帴杩?iOS 鍗＄墖瑙傛劅銆?*/
 .group-title{
   font-size:21rpx!important;
   font-weight:400;
@@ -297,12 +296,13 @@ export default adaptPage(pageConfig)
 }
 .setting-row{
   position:relative;
-  height:86rpx;
+  height:95rpx;
   padding:0!important;
   margin:0!important;
 }
 .setting-row:not(:last-child)::before{
-  content:'';
+  content:''!important;
+  display:block!important;
   position:absolute;
   left:0;
   right:0;
@@ -311,9 +311,14 @@ export default adaptPage(pageConfig)
   background:#ededf0;
 }
 .setting-row>text:first-child{
-  font-size:27rpx;
-  font-weight:650;
+  font-size:30rpx;
+  font-weight:500;
   line-height:1.2;
+  color:#111;
+}
+.setting-row>text:last-child{
+  font-size:24rpx;
+  font-weight:400;
 }
 .notification-group .switch{position:relative;z-index:3;pointer-events:auto}
 

@@ -1,5 +1,5 @@
 ﻿<template>
-<view :style="globalThemeStyle" class="page checkout-page">
+<view :style="globalThemeStyle" :class="`page checkout-page ${elderMode ? 'elder-mode' : ''}`">
   <view class="checkout-head" :style="`padding-top:${statusHeight}px`">
     <view class="nav-row">
       <button hover-class="none" class="nav-back page-back" @tap="back"><image src="/static/assets/icons/back.svg" mode="aspectFit" /></button>
@@ -94,6 +94,7 @@ import auth from '../../utils/auth.js'
 import membership from '../../utils/membership.js'
 import orderBackend from '../../utils/order-backend.js'
 import benefitBackend from '../../utils/benefit-backend.js'
+import elderMode from '../../utils/elder-mode.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -120,6 +121,7 @@ const pageConfig = {
     timeVisible: false,
     showRemark: false,
     tablewareVisible: false,
+    elderMode: false,
     submitting: false
   },
   onLoad() {
@@ -128,6 +130,7 @@ const pageConfig = {
   },
   // 鍔犺浇璐墿杞︺€佺敤鎴烽€夊畾鍦板潃銆佷紭鎯犲埜鍜屼細鍛樻潈鐩娿€?
   onShow() {
+    this.setData({ elderMode: elderMode.isEnabled() })
     this.renderCheckout()
     if (store.isLogin()) {
       benefitBackend.syncBenefits()
@@ -472,6 +475,129 @@ export default adaptPage(pageConfig)
   display:none!important;
   border:0!important;
   background:transparent!important;
+}
+
+/* 长辈模式：确认订单页放大地址、商品和提交区，保留完整下单流程。 */
+.checkout-page.elder-mode .checkout-scroll-inner{
+  padding:20rpx 26rpx calc(180rpx + env(safe-area-inset-bottom));
+}
+.checkout-page.elder-mode .delivery-panel{
+  border-radius:38rpx;
+  margin-bottom:24rpx;
+}
+.checkout-page.elder-mode .address-panel{
+  min-height:138rpx;
+  padding:26rpx!important;
+}
+.checkout-page.elder-mode .address-pin{
+  width:52rpx;
+  height:52rpx;
+  flex-basis:52rpx;
+  margin-right:18rpx;
+}
+.checkout-page.elder-mode .address-pin image{
+  width:40rpx;
+  height:40rpx;
+}
+.checkout-page.elder-mode .address-detail{
+  font-size:35rpx;
+}
+.checkout-page.elder-mode .address-user{
+  font-size:25rpx;
+  margin-top:10rpx;
+}
+.checkout-page.elder-mode .delivery-panel .time-panel{
+  min-height:106rpx;
+  padding:18rpx 26rpx;
+}
+.checkout-page.elder-mode .time-label{
+  font-size:31rpx;
+}
+.checkout-page.elder-mode .time-safe{
+  font-size:20rpx;
+  padding:6rpx 10rpx;
+}
+.checkout-page.elder-mode .time-panel button{
+  font-size:26rpx;
+  font-weight:650;
+}
+.checkout-page.elder-mode .order-goods,
+.checkout-page.elder-mode .option-card{
+  padding:30rpx;
+  margin-bottom:24rpx;
+  border-radius:38rpx;
+}
+.checkout-page.elder-mode .shop-title{
+  font-size:34rpx;
+  margin-bottom:24rpx;
+}
+.checkout-page.elder-mode .goods-row{
+  padding:22rpx 0;
+}
+.checkout-page.elder-mode .goods-visual{
+  width:128rpx;
+  height:128rpx;
+  border-radius:30rpx;
+}
+.checkout-page.elder-mode .goods-name{
+  padding-left:18rpx;
+}
+.checkout-page.elder-mode .goods-name text:first-child{
+  font-size:31rpx;
+}
+.checkout-page.elder-mode .goods-name text:last-child{
+  font-size:22rpx;
+}
+.checkout-page.elder-mode .goods-count,
+.checkout-page.elder-mode .goods-price{
+  font-size:28rpx;
+}
+.checkout-page.elder-mode .bill-row,
+.checkout-page.elder-mode .option-row{
+  min-height:92rpx!important;
+  height:92rpx!important;
+}
+.checkout-page.elder-mode .bill-row>text:first-child,
+.checkout-page.elder-mode .option-row>text:first-child{
+  height:92rpx!important;
+  font-size:30rpx!important;
+}
+.checkout-page.elder-mode .bill-row>text:last-child,
+.checkout-page.elder-mode .option-row>text:last-child{
+  height:92rpx!important;
+  font-size:26rpx!important;
+}
+.checkout-page.elder-mode .subtotal{
+  font-size:28rpx;
+}
+.checkout-page.elder-mode .subtotal text{
+  font-size:40rpx;
+}
+.checkout-page.elder-mode .green-tip{
+  font-size:24rpx;
+}
+.checkout-page.elder-mode .submit-bar{
+  min-height:122rpx;
+  padding:14rpx 14rpx 14rpx 24rpx;
+}
+.checkout-page.elder-mode .submit-price{
+  font-size:42rpx;
+}
+.checkout-page.elder-mode .save-tip{
+  font-size:21rpx;
+}
+.checkout-page.elder-mode .submit-bar>button{
+  width:236rpx!important;
+  flex-basis:236rpx;
+  height:94rpx;
+  font-size:30rpx;
+}
+.checkout-page.elder-mode .sheet-title{
+  font-size:38rpx;
+}
+.checkout-page.elder-mode .sheet>button:not(.primary-btn){
+  height:112rpx;
+  font-size:30rpx;
 }
 
 </style>

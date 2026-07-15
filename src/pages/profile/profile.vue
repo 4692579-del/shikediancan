@@ -4,43 +4,43 @@
     <text v-if="profileTheme.watermark" class="profile-v-watermark">V</text>
     <button hover-class="none" v-if="user" class="user-row" @tap="account">
       <view class="user-avatar"><image :src="user.avatar" mode="aspectFill" /></view>
-      <view class="user-copy"><view class="name-line"><text class="user-name">{{user.nickname || ('食刻用户' + user.username)}}</text><text v-if="membershipActive" :class="`level-chip ${membershipTier === 'pro' ? 'pro-level-chip' : 'plus-level-chip'}`">{{membershipTier === 'pro' ? 'PRO会员' : 'PLUS会员'}}</text></view><text class="user-phone">{{user.username || '已登录账号'}}</text></view><text class="chev">›</text>
+      <view class="user-copy"><view class="name-line"><text class="user-name">{{user.nickname || ('食刻用户' + user.username)}}</text><text v-if="membershipActive" :class="`level-chip ${membershipTier === 'pro' ? 'pro-level-chip' : 'plus-level-chip'}`">{{membershipTier === 'pro' ? 'PRO会员' : 'PLUS会员'}}</text></view><text class="user-phone">{{user.username || text.accountLogged}}</text></view><text class="chev">›</text>
     </button>
     <button hover-class="none" v-else class="user-row" @tap="account">
       <view class="user-avatar guest"><image src="/static/assets/icons/user.svg" mode="aspectFit" /></view>
-      <view class="user-copy"><text class="user-name">登录 / 注册</text><text class="user-phone">登录后享受更多服务</text></view><text class="chev">›</text>
+      <view class="user-copy"><text class="user-name">{{text.guestName}}</text><text class="user-phone">{{text.guestSub}}</text></view><text class="chev">›</text>
     </button>
     <view class="stats">
-      <button hover-class="none" data-url="/pages/coupons/coupons" @tap="goPage"><text class="stat-num">{{couponCount}}</text><text>优惠券</text></button>
+      <button hover-class="none" data-url="/pages/coupons/coupons" @tap="goPage"><text class="stat-num">{{couponCount}}</text><text>{{text.coupon}}</text></button>
       <view class="stats-divider"></view>
-      <button hover-class="none" data-url="/pages/favorites/favorites" @tap="goPage"><text class="stat-num">{{favoriteCount}}</text><text>收藏</text></button>
+      <button hover-class="none" data-url="/pages/favorites/favorites" @tap="goPage"><text class="stat-num">{{favoriteCount}}</text><text>{{text.favorite}}</text></button>
       <view class="stats-divider"></view>
-      <button hover-class="none" @tap="goOrders"><text class="stat-num">{{user ? '128' : '0'}}</text><text>积分</text></button>
+      <button hover-class="none" @tap="goOrders"><text class="stat-num">{{user ? '128' : '0'}}</text><text>{{text.points}}</text></button>
     </view>
   </view>
   <view class="profile-content">
     <view class="order-panel card">
-      <view class="section-head"><text class="panel-title">我的订单</text><button hover-class="none" class="section-more" @tap="goOrders">全部订单 ›</button></view>
+      <view class="section-head"><text class="panel-title">{{text.myOrders}}</text><button hover-class="none" class="section-more" @tap="goOrders">{{text.allOrders}}</button></view>
       <view class="order-actions">
-        <button hover-class="none" class="order-primary" data-status="unpaid" @tap="goOrders"><view class="action-icon"><image src="/static/assets/icons/payment.svg" mode="aspectFit" /><text v-if="unpaidCount">{{unpaidCount}}</text></view><text>待付款</text></button>
-        <button hover-class="none" data-status="making" @tap="goOrders"><view class="action-icon"><image src="/static/assets/icons/shop.svg" mode="aspectFit" /><text v-if="activeOrderCount">{{activeOrderCount}}</text></view><text>进行中</text></button>
-        <button hover-class="none" data-status="done" @tap="goOrders"><view class="action-icon"><image src="/static/assets/icons/success.svg" mode="aspectFit" /><text v-if="doneCount">{{doneCount}}</text></view><text>已完成</text></button>
-        <button hover-class="none" @tap="goReviews"><view class="action-icon"><image src="/static/assets/icons/star.svg" mode="aspectFit" /><text v-if="reviewedCount">{{reviewedCount}}</text></view><text>我的评价</text></button>
+        <button hover-class="none" class="order-primary" data-status="unpaid" @tap="goOrders"><view class="action-icon"><image src="/static/assets/icons/payment.svg" mode="aspectFit" /><text v-if="unpaidCount">{{unpaidCount}}</text></view><text>{{text.unpaid}}</text></button>
+        <button hover-class="none" data-status="making" @tap="goOrders"><view class="action-icon"><image src="/static/assets/icons/shop.svg" mode="aspectFit" /><text v-if="activeOrderCount">{{activeOrderCount}}</text></view><text>{{text.processing}}</text></button>
+        <button hover-class="none" data-status="done" @tap="goOrders"><view class="action-icon"><image src="/static/assets/icons/success.svg" mode="aspectFit" /><text v-if="doneCount">{{doneCount}}</text></view><text>{{text.done}}</text></button>
+        <button hover-class="none" @tap="goReviews"><view class="action-icon"><image src="/static/assets/icons/star.svg" mode="aspectFit" /><text v-if="reviewedCount">{{reviewedCount}}</text></view><text>{{text.myReviews}}</text></button>
       </view>
     </view>
     <view v-if="!membershipActive" class="member-card">
-      <view class="member-copy"><view class="member-line"><text class="member-kicker">食刻 PLUS</text><text class="member-tag">每月省更多</text></view><text class="member-title">开通会员 · 每月领 ¥24 券包</text></view>
-      <button hover-class="none" data-url="/pages/plus/plus" @tap="goPage">立即查看 <text>›</text></button>
+      <view class="member-copy"><view class="member-line"><text class="member-kicker">{{text.plus}}</text><text class="member-tag">{{text.plusTag}}</text></view><text class="member-title">{{text.plusDesc}}</text></view>
+      <button hover-class="none" data-url="/pages/plus/plus" @tap="goPage">{{text.viewNow}} <text>›</text></button>
     </view>
     <view class="service-card card">
-      <text class="panel-title">常用服务</text>
+      <text class="panel-title">{{text.services}}</text>
       <view class="service-grid">
-        <button hover-class="none" data-url="/pages/plus/plus" @tap="goPage"><view class="service-icon member-service"><image src="/static/assets/icons/star-filled.svg" mode="aspectFit" /></view><text>会员中心</text></button>
-        <button hover-class="none" data-url="/pages/address/address" @tap="goPage"><view class="service-icon location-service"><image src="/static/assets/icons/location.svg" mode="aspectFit" /></view><text>地址管理</text></button>
-        <button hover-class="none" class="service-featured" data-url="/pages/cart/cart" @tap="goPage"><view class="service-icon cart-service"><image src="/static/assets/icons/cart.svg" mode="aspectFit" /><text v-if="cartCount">{{cartCount}}</text></view><text>购物车</text></button>
-        <button hover-class="none" data-url="/pages/wallet/wallet" @tap="goPage"><view class="service-icon wallet-service"><image src="/static/assets/icons/wallet.svg" mode="aspectFit" /></view><text>食刻钱包</text></button>
-        <button hover-class="none" @tap="contact"><view class="service-icon support-service"><image src="/static/assets/icons/service.svg" mode="aspectFit" /></view><text>联系客服</text></button>
-        <button hover-class="none" data-url="/pages/settings/settings" @tap="goPage"><view class="service-icon notice-service"><image src="/static/assets/icons/bell.svg" mode="aspectFit" /></view><text>消息设置</text></button>
+        <button hover-class="none" data-url="/pages/plus/plus" @tap="goPage"><view class="service-icon member-service"><image src="/static/assets/icons/star-filled.svg" mode="aspectFit" /></view><text>{{text.memberCenter}}</text></button>
+        <button hover-class="none" data-url="/pages/address/address" @tap="goPage"><view class="service-icon location-service"><image src="/static/assets/icons/location.svg" mode="aspectFit" /></view><text>{{text.address}}</text></button>
+        <button hover-class="none" class="service-featured" data-url="/pages/cart/cart" @tap="goPage"><view class="service-icon cart-service"><image src="/static/assets/icons/cart.svg" mode="aspectFit" /><text v-if="cartCount">{{cartCount}}</text></view><text>{{text.cart}}</text></button>
+        <button hover-class="none" data-url="/pages/wallet/wallet" @tap="goPage"><view class="service-icon wallet-service"><image src="/static/assets/icons/wallet.svg" mode="aspectFit" /></view><text>{{text.wallet}}</text></button>
+        <button hover-class="none" @tap="contact"><view class="service-icon support-service"><image src="/static/assets/icons/service.svg" mode="aspectFit" /></view><text>{{text.service}}</text></button>
+        <button hover-class="none" data-url="/pages/settings/settings" @tap="goPage"><view class="service-icon notice-service"><image src="/static/assets/icons/bell.svg" mode="aspectFit" /></view><text>{{text.message}}</text></button>
       </view>
     </view>
   </view>
@@ -60,6 +60,7 @@ import membership from '../../utils/membership.js'
 import favoriteBackend from '../../utils/favorite-backend.js'
 import orderBackend from '../../utils/order-backend.js'
 import benefitBackend from '../../utils/benefit-backend.js'
+import i18n from '../../utils/i18n.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -75,7 +76,8 @@ const pageConfig = {
     membershipActive: false,
     membershipTier: '',
     membershipExpireText: '',
-    profileTheme: profileTheme.getTheme('black')
+    profileTheme: profileTheme.getTheme('black'),
+    text: i18n.page('profile')
   },
   onLoad() { this.setData({ statusHeight: getApp().globalData.statusBarHeight }) },
   // 先用本地缓存立即渲染“我的”页，再在后台刷新后端数据，避免切换进来时长时间空白。
@@ -125,7 +127,8 @@ const pageConfig = {
       membershipActive,
       membershipTier: membershipActive ? membership.getTier() : '',
       membershipExpireText: memberRecord ? membership.formatDate(memberRecord.expireAt) : '',
-      profileTheme: theme
+      profileTheme: theme,
+      text: i18n.page('profile')
     })
   },
   login() { auth.requireLogin('/pages/profile/profile') },

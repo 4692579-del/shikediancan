@@ -76,9 +76,9 @@ export default adaptPage(pageConfig)
 .security-content{padding:24rpx}
 .setting-group{padding:10rpx 26rpx;margin-bottom:20rpx}
 .group-title{display:block;font-size:21rpx;color:#999;font-weight:400;line-height:1.2;padding:18rpx 0 8rpx}
-.setting-row{position:relative;width:100%!important;height:86rpx!important;margin:0!important;padding:0!important;display:flex;align-items:center;justify-content:space-between;background:transparent!important;text-align:left}
+.setting-row{position:relative;width:100%!important;height:95rpx!important;margin:0!important;padding:0!important;display:flex;align-items:center;justify-content:space-between;background:transparent!important;text-align:left}
 .setting-row::after{border:0!important}
 .setting-row:not(:last-child)::before{content:'';position:absolute;left:0;right:0;bottom:0;height:1rpx;background:#ededf0}
-.setting-row text:first-child{font-size:27rpx;font-weight:650;color:#111}
-.setting-row text:last-child{font-size:22rpx;color:#999}
+.setting-row text:first-child{font-size:30rpx;font-weight:500;color:#111;line-height:1.2}
+.setting-row text:last-child{font-size:24rpx;font-weight:400;color:#999}
 </style>

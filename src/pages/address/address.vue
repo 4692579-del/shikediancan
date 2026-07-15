@@ -42,7 +42,7 @@
   <view v-else-if="privacyChecked" class="privacy-gate">
     <view class="privacy-gate-card">
       <text class="privacy-gate-title">地址信息使用说明</text>
-      <text class="privacy-gate-desc">为完成收货地址管理、订单确认和配送信息展示，我们需要收集并在本机存储你主动填写的联系人姓名、手机号码、省市区及详细地址。上述信息仅用于本应用的模拟点餐流程，不会上传至服务器或用于其他用途。</text>
+      <text class="privacy-gate-desc">为完成收货地址管理、订单确认和配送信息展示，我们需要收集你主动填写的联系人姓名、手机号码、省市区及详细地址，并通过 uniCloud 保存和读取。上述信息仅用于本应用的点餐、地址与订单相关流程，不会用于无关用途。</text>
       <view class="privacy-gate-links"><text>请阅读并同意</text><button hover-class="none" data-type="user" @tap="openAgreement">《用户服务协议》</button><text>和</text><button hover-class="none" data-type="privacy" @tap="openAgreement">《隐私政策》</button></view>
       <button v-if="platformPrivacyRequired" hover-class="none" class="primary-btn privacy-agree">同意并继续</button>
       <button v-else hover-class="none" class="primary-btn privacy-agree" @tap="agreePrivacy">同意并继续</button>

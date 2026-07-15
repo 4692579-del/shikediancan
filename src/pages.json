@@ -153,6 +153,14 @@
       }
     },
     {
+      "path": "pages/notification-settings/notification-settings",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
       "path": "pages/account-security/account-security",
       "style": {
         "navigationStyle": "custom",
@@ -178,6 +186,30 @@
     },
     {
       "path": "pages/personalization/personalization",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/language/language",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/elder-mode/elder-mode",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/font-size/font-size",
       "style": {
         "navigationStyle": "custom",
         "enablePullDownRefresh": false,

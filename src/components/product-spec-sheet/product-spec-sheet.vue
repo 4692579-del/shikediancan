@@ -1,5 +1,5 @@
 <template>
-<view v-if="show && food" class="spec-mask" @tap="close">
+<view v-if="show && food" :class="`spec-mask ${elderMode ? 'elder-mode' : ''}`" @tap="close">
   <view class="spec-dialog" @tap.stop="noop">
     <view class="sheet-handle"></view>
     <view class="sheet-product">
@@ -32,6 +32,7 @@ import adaptComponent from '@/utils/component-adapter.js'
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
 import orderBackend from '../../utils/order-backend.js'
+import elderMode from '../../utils/elder-mode.js'
 const componentConfig = {
   properties: {
     show: { type: Boolean, value: false },
@@ -45,6 +46,7 @@ const componentConfig = {
       { name: '双倍主菜', extra: 9 }
     ],
     count: 1,
+    elderMode: false,
     displayPrice: '0.0'
   },
   observers: {
@@ -53,6 +55,7 @@ const componentConfig = {
         this.setData({
           selectedSpec: '标准份',
           count: 1,
+          elderMode: elderMode.isEnabled(),
           displayPrice: Number(food.price).toFixed(1)
         })
       }
@@ -135,5 +138,63 @@ export default adaptComponent(componentConfig)
 .sheet-stepper button{width:48rpx!important;min-width:48rpx!important;max-width:48rpx!important;height:48rpx;flex:0 0 48rpx;padding:0;border-radius:0;background:transparent;color:#666;font-size:27rpx;display:flex;align-items:center;justify-content:center}.sheet-stepper .minus{border-right:1rpx solid #e5e5e9}.sheet-stepper .plus{border-left:1rpx solid rgba(255,255,255,.35);border-radius:0 999rpx 999rpx 0;background:var(--orange);color:#fff}
 .count-input{width:54rpx;height:48rpx;flex:0 0 54rpx;padding:0;color:#333;font-size:22rpx;font-weight:650;line-height:48rpx;text-align:center;background:#fff}
 .confirm-btn{width:100%!important;max-width:none!important;height:84rpx;margin-top:30rpx;border-radius:999rpx;background:var(--theme-gradient);color:#fff;font-size:25rpx;font-weight:750;display:flex;align-items:center;justify-content:center}
+
+/* 长辈模式：通用规格面板同步放大规格、数量和确认按钮。 */
+.spec-mask.elder-mode .spec-dialog{
+  padding:20rpx 34rpx calc(38rpx + env(safe-area-inset-bottom));
+}
+.spec-mask.elder-mode .sheet-visual{
+  width:132rpx;
+  height:132rpx;
+  flex-basis:132rpx;
+  border-radius:30rpx;
+}
+.spec-mask.elder-mode .sheet-copy>text{
+  font-size:32rpx;
+}
+.spec-mask.elder-mode .sheet-copy>view{
+  font-size:42rpx;
+}
+.spec-mask.elder-mode .sheet-title{
+  font-size:34rpx;
+}
+.spec-mask.elder-mode .detail-specs button{
+  height:98rpx;
+}
+.spec-mask.elder-mode .detail-specs button text:first-child{
+  font-size:24rpx;
+}
+.spec-mask.elder-mode .detail-specs button text:last-child{
+  font-size:19rpx;
+}
+.spec-mask.elder-mode .sheet-quantity-row>view:first-child text:first-child{
+  font-size:30rpx;
+}
+.spec-mask.elder-mode .sheet-stepper{
+  width:174rpx;
+  height:58rpx;
+  flex-basis:174rpx;
+}
+.spec-mask.elder-mode .sheet-stepper.single{
+  width:122rpx;
+  flex-basis:122rpx;
+}
+.spec-mask.elder-mode .sheet-stepper button{
+  width:58rpx!important;
+  min-width:58rpx!important;
+  max-width:58rpx!important;
+  height:58rpx;
+}
+.spec-mask.elder-mode .count-input{
+  width:58rpx;
+  height:58rpx;
+  flex-basis:58rpx;
+  font-size:26rpx;
+  line-height:58rpx;
+}
+.spec-mask.elder-mode .confirm-btn{
+  height:96rpx;
+  font-size:30rpx;
+}
 
 </style>

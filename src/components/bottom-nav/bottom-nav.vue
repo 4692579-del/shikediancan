@@ -1,11 +1,11 @@
 <template>
-<view class="dock-wrap">
+<view :class="`dock-wrap ${elderMode ? 'elder-mode' : ''}`">
   <view v-if="!loggedIn" class="login-prompt">
     <view class="login-prompt-copy">
-      <text class="login-prompt-title">登录后享更多优惠</text>
-      <text class="login-prompt-sub">优惠券、订单与购物车随时查看</text>
+      <text class="login-prompt-title">{{text.loginTitle}}</text>
+      <text class="login-prompt-sub">{{text.loginSub}}</text>
     </view>
-    <button hover-class="none" class="login-prompt-btn" @tap="loginNow">立即登录</button>
+    <button hover-class="none" class="login-prompt-btn" @tap="loginNow">{{text.loginBtn}}</button>
   </view>
   <view class="dock">
     <block v-for="(item, index) in tabs" :key="item.key">
@@ -26,6 +26,8 @@ import adaptComponent from '@/utils/component-adapter.js'
 
 import auth from '../../utils/auth.js'
 import store from '../../utils/store.js'
+import i18n from '../../utils/i18n.js'
+import elderMode from '../../utils/elder-mode.js'
 const componentConfig = {
   properties: {
     active: { type: String, value: 'home' }
@@ -33,11 +35,13 @@ const componentConfig = {
   data: {
     loggedIn: false,
     navigating: false,
+    elderMode: false,
+    text: i18n.page('tab'),
     tabs: [
-      { key: 'home', icon: '/static/assets/icons/home.svg', label: '首页', url: '/pages/home/home' },
-      { key: 'menu', icon: '/static/assets/icons/food.svg', label: '点餐', url: '/pages/menu/menu' },
-      { key: 'orders', icon: '/static/assets/icons/order.svg', label: '订单', url: '/pages/orders/orders' },
-      { key: 'profile', icon: '/static/assets/icons/user.svg', label: '我的', url: '/pages/profile/profile' }
+      { key: 'home', icon: '/static/assets/icons/home.svg', label: i18n.page('tab').home, url: '/pages/home/home' },
+      { key: 'menu', icon: '/static/assets/icons/food.svg', label: i18n.page('tab').menu, url: '/pages/menu/menu' },
+      { key: 'orders', icon: '/static/assets/icons/order.svg', label: i18n.page('tab').orders, url: '/pages/orders/orders' },
+      { key: 'profile', icon: '/static/assets/icons/user.svg', label: i18n.page('tab').profile, url: '/pages/profile/profile' }
     ]
   },
   lifetimes: {
@@ -51,7 +55,18 @@ const componentConfig = {
   },
   methods: {
     refreshLogin() {
-      this.setData({ loggedIn: store.isLogin() })
+      const text = i18n.page('tab')
+      this.setData({
+        loggedIn: store.isLogin(),
+        elderMode: elderMode.isEnabled(),
+        text,
+        tabs: [
+          { key: 'home', icon: '/static/assets/icons/home.svg', label: text.home, url: '/pages/home/home' },
+          { key: 'menu', icon: '/static/assets/icons/food.svg', label: text.menu, url: '/pages/menu/menu' },
+          { key: 'orders', icon: '/static/assets/icons/order.svg', label: text.orders, url: '/pages/orders/orders' },
+          { key: 'profile', icon: '/static/assets/icons/user.svg', label: text.profile, url: '/pages/profile/profile' }
+        ]
+      })
     },
     // 未登录提示条的立即登录入口，并记录当前页面作为返回目标。
     loginNow() {
@@ -238,6 +253,55 @@ uni-button.login-prompt-btn,
 .tab.active .tab-label{
   margin-top:0!important;
   line-height:24rpx!important;
+}
+
+/* 长辈模式：底部导航更高、更大字，点击区域更友好。 */
+.dock-wrap.elder-mode{
+  padding-left:28rpx;
+  padding-right:28rpx;
+}
+.dock-wrap.elder-mode .login-prompt{
+  min-height:90rpx;
+  padding:14rpx 14rpx 14rpx 30rpx;
+}
+.dock-wrap.elder-mode .login-prompt-title{
+  font-size:26rpx;
+}
+.dock-wrap.elder-mode .login-prompt-sub{
+  font-size:20rpx;
+}
+.dock-wrap.elder-mode .login-prompt-btn{
+  width:140rpx!important;
+  min-width:140rpx!important;
+  max-width:140rpx!important;
+  flex-basis:140rpx!important;
+  height:58rpx!important;
+  font-size:23rpx!important;
+}
+.dock-wrap.elder-mode .dock{
+  height:124rpx;
+  padding:0 14rpx;
+}
+.dock-wrap.elder-mode .tab,
+.dock-wrap.elder-mode .tab.active{
+  height:98rpx;
+  margin:0 6rpx;
+}
+.dock-wrap.elder-mode .tab-icon-wrap,
+.dock-wrap.elder-mode .tab.active .tab-icon-wrap{
+  width:62rpx;
+  height:46rpx!important;
+  margin-bottom:5rpx!important;
+}
+.dock-wrap.elder-mode .tab-icon,
+.dock-wrap.elder-mode .tab.active .tab-icon{
+  width:39rpx!important;
+  height:39rpx!important;
+}
+.dock-wrap.elder-mode .tab-label,
+.dock-wrap.elder-mode .tab.active .tab-label{
+  font-size:25rpx;
+  line-height:30rpx!important;
 }
 
 </style>

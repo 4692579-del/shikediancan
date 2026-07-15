@@ -12,7 +12,7 @@
       <view class="glass-piece p4"></view>
     </view>
     <view class="hero-copy">
-      <text class="hello">Hello!</text>
+      <text class="hello">{{ labels.hello }}</text>
       <text class="login-title">{{ labels.title }}</text>
       <text class="login-sub">{{ labels.sub }}</text>
     </view>
@@ -73,26 +73,27 @@ import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
 import account from '../../utils/account.js'
 import cloud from '../../utils/cloud.js'
+import i18n from '../../utils/i18n.js'
 
-const labels = {
-  title: '\u6b22\u8fce\u6765\u5230\u98df\u523b',
-  sub: '\u767b\u5f55\u540e\u4eab\u53d7\u4e13\u5c5e\u4f18\u60e0\u4e0e\u4fbf\u6377\u70b9\u9910',
-  login: '\u767b\u5f55',
-  register: '\u6ce8\u518c',
-  usernamePlaceholder: '\u8bf7\u8f93\u5165\u7528\u6237\u540d',
-  passwordPlaceholder: '\u8bf7\u8f93\u5165\u5bc6\u7801',
-  confirmPlaceholder: '\u8bf7\u518d\u6b21\u8f93\u5165\u5bc6\u7801',
-  loginButton: '\u767b\u5f55',
-  registerButton: '\u6ce8\u518c\u8d26\u53f7',
-  processing: '\u5904\u7406\u4e2d...',
-  noAccount: '\u8fd8\u6ca1\u6709\u8d26\u53f7\uff1f',
-  goRegister: '\u7acb\u5373\u6ce8\u518c',
-  hasAccount: '\u5df2\u6709\u8d26\u53f7\uff1f',
-  goLogin: '\u53bb\u767b\u5f55',
-  agreePrefix: '\u6211\u5df2\u9605\u8bfb\u5e76\u540c\u610f',
-  service: '\u300a\u7528\u6237\u670d\u52a1\u534f\u8bae\u300b',
-  privacy: '\u300a\u9690\u79c1\u653f\u7b56\u300b',
-  and: '\u548c'
+function getLabels() {
+  const text = i18n.page('login')
+  return {
+    hello: text.hello,
+    title: text.welcome,
+    sub: text.sub,
+    login: text.login,
+    register: text.register,
+    usernamePlaceholder: text.username,
+    passwordPlaceholder: text.password,
+    confirmPlaceholder: text.confirmPassword,
+    loginButton: text.loginButton,
+    registerButton: text.registerButton,
+    processing: i18n.getLocale() === 'en' ? 'Processing...' : i18n.getLocale() === 'ja' ? '処理中...' : '处理中...',
+    agreePrefix: text.agree,
+    service: text.agreement,
+    privacy: text.privacy,
+    and: text.and
+  }
 }
 
 function toast(title) {
@@ -106,7 +107,7 @@ function isValidUsername(username) {
 const pageConfig = {
   data: {
     statusHeight: 20,
-    labels,
+    labels: getLabels(),
     mode: 'login',
     agreed: false,
     username: '',
@@ -119,6 +120,9 @@ const pageConfig = {
   },
   onLoad() {
     this.setData({ statusHeight: getApp().globalData.statusBarHeight || 20 })
+  },
+  onShow() {
+    this.setData({ labels: getLabels() })
   },
   back() {
     auth.cancelLogin()

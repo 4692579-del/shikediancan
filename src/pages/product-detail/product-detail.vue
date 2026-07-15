@@ -1,5 +1,5 @@
 ﻿<template>
-<view :style="globalThemeStyle" v-if="food" class="page product-page">
+<view :style="globalThemeStyle" v-if="food" :class="`page product-page ${elderMode ? 'elder-mode' : ''}`">
   <view class="product-nav" :style="`padding-top:${statusHeight}px`">
     <view class="nav-row">
       <button hover-class="none" class="nav-back page-back" @tap="back"><image src="/static/assets/icons/back.svg" mode="aspectFit" /></button>
@@ -93,6 +93,7 @@ import auth from '../../utils/auth.js'
 import orderBackend from '../../utils/order-backend.js'
 import favoriteBackend from '../../utils/favorite-backend.js'
 import productBackend from '../../utils/product-backend.js'
+import elderMode from '../../utils/elder-mode.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -108,6 +109,7 @@ const pageConfig = {
     count: 1,
     displayPrice: '0.0',
     cartCount: 0,
+    elderMode: false,
     showSpecSheet: false
   },
   // 根据商品 id 读取详情数据，找不到商品时返回上一页。
@@ -144,6 +146,7 @@ const pageConfig = {
   },
   onShow() {
     if (!this.food) return
+    this.setData({ elderMode: elderMode.isEnabled() })
     this.syncPageState()
     if (store.isLogin()) {
       favoriteBackend.fetchFavorites()
@@ -302,6 +305,149 @@ uni-button.cart-entry::after,
 uni-button.favorite-entry::after{
   border:0!important;
   background:transparent!important;
+}
+
+/* 长辈模式：商品详情页采用更大图片区、标题、说明和底部操作按钮。 */
+.product-page.elder-mode .product-hero{
+  height:480rpx;
+}
+.product-page.elder-mode .product-main{
+  padding:0 26rpx;
+}
+.product-page.elder-mode .product-summary,
+.product-page.elder-mode .detail-card{
+  padding:32rpx;
+  margin-bottom:22rpx;
+  border-radius:38rpx;
+}
+.product-page.elder-mode .product-name{
+  font-size:44rpx;
+}
+.product-page.elder-mode .product-desc{
+  font-size:27rpx;
+}
+.product-page.elder-mode .product-meta{
+  gap:18rpx;
+  font-size:24rpx;
+  flex-wrap:wrap;
+}
+.product-page.elder-mode .product-meta image{
+  width:27rpx;
+  height:27rpx;
+}
+.product-page.elder-mode .product-price{
+  font-size:50rpx;
+}
+.product-page.elder-mode .product-price>text:first-child{
+  font-size:30rpx;
+}
+.product-page.elder-mode .product-price .old-price{
+  font-size:24rpx;
+}
+.product-page.elder-mode .detail-title{
+  font-size:35rpx;
+}
+.product-page.elder-mode .intro{
+  font-size:28rpx;
+  line-height:1.85;
+}
+.product-page.elder-mode .detail-facts text:first-child{
+  font-size:24rpx;
+}
+.product-page.elder-mode .detail-facts text:last-child{
+  font-size:28rpx;
+}
+.product-page.elder-mode .chip-row text{
+  padding:13rpx 20rpx;
+  font-size:24rpx;
+}
+.product-page.elder-mode .spec-entry{
+  min-height:112rpx;
+}
+.product-page.elder-mode .spec-entry>view{
+  font-size:27rpx;
+}
+.product-page.elder-mode .review-copy,
+.product-page.elder-mode .review-user>text:nth-child(2){
+  font-size:26rpx;
+}
+.product-page.elder-mode .service-note{
+  font-size:23rpx;
+}
+.product-page.elder-mode .product-actions{
+  left:28rpx;
+  right:28rpx;
+  height:116rpx;
+  padding:12rpx 14rpx;
+}
+.product-page.elder-mode .cart-entry,
+.product-page.elder-mode .favorite-entry{
+  width:92rpx!important;
+  min-width:92rpx!important;
+  max-width:92rpx!important;
+  flex-basis:92rpx;
+  height:92rpx;
+  font-size:21rpx;
+}
+.product-page.elder-mode .cart-entry image,
+.product-page.elder-mode .favorite-entry image{
+  width:38rpx;
+  height:38rpx;
+}
+.product-page.elder-mode .add-cart{
+  height:92rpx;
+  font-size:30rpx;
+}
+.product-page.elder-mode .spec-dialog{
+  padding:18rpx 34rpx calc(178rpx + env(safe-area-inset-bottom));
+}
+.product-page.elder-mode .sheet-visual{
+  width:130rpx;
+  height:130rpx;
+  flex-basis:130rpx;
+}
+.product-page.elder-mode .sheet-copy>text{
+  font-size:32rpx;
+}
+.product-page.elder-mode .sheet-copy>view{
+  font-size:42rpx;
+}
+.product-page.elder-mode .sheet-title{
+  font-size:34rpx;
+}
+.product-page.elder-mode .detail-specs button{
+  height:96rpx;
+}
+.product-page.elder-mode .detail-specs button text:first-child{
+  font-size:24rpx;
+}
+.product-page.elder-mode .detail-specs button text:last-child{
+  font-size:19rpx;
+}
+.product-page.elder-mode .sheet-quantity-row>view:first-child text:first-child{
+  font-size:30rpx;
+}
+.product-page.elder-mode .sheet-stepper{
+  width:174rpx;
+  height:58rpx;
+  flex-basis:174rpx;
+}
+.product-page.elder-mode .sheet-stepper.single{
+  width:122rpx;
+  flex-basis:122rpx;
+}
+.product-page.elder-mode .sheet-stepper button{
+  width:58rpx!important;
+  min-width:58rpx!important;
+  max-width:58rpx!important;
+  height:58rpx;
+}
+.product-page.elder-mode .sheet-stepper .count-input{
+  width:58rpx;
+  height:58rpx;
+  flex-basis:58rpx;
+  font-size:26rpx;
+  line-height:58rpx;
 }
 
 </style>

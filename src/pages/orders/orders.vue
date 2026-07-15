@@ -2,7 +2,7 @@
 <view :style="globalThemeStyle" class="page orders-page">
   <view class="orders-head" :style="`padding-top:${statusHeight}px`">
     <view class="nav-row">
-      <text class="nav-title">我的订单</text>
+      <text class="nav-title">{{text.title}}</text>
       <view class="nav-back"></view>
     </view>
     <view class="order-tabs">
@@ -10,7 +10,7 @@
         <text>{{ activeLabel }}</text>
         <text :class="`tab-arrow ${showStatusMenu ? 'open' : ''}`">▼</text>
       </button>
-      <button hover-class="none" :class="active === 'unpaid' ? 'active' : ''" data-id="unpaid" @tap="selectTab">待付款</button>
+      <button hover-class="none" :class="active === 'unpaid' ? 'active' : ''" data-id="unpaid" @tap="selectTab">{{text.unpaid}}</button>
     </view>
     <view v-if="showStatusMenu" class="status-menu">
       <button
@@ -46,7 +46,7 @@
         </view>
         <view class="order-summary">
           <text>{{ orderSummary(item) }}</text>
-          <text>实付 ¥{{ item.total }}</text>
+          <text>{{text.paid}} ¥{{ item.total }}</text>
         </view>
       </view>
 
@@ -62,16 +62,16 @@
         >
           <view class="more-dots"><text></text><text></text><text></text></view>
         </button>
-        <button hover-class="none" class="orange-btn action-main" :data-id="item.id" @tap.stop="detail">查看详情</button>
-        <button v-if="item.status === 'unpaid'" hover-class="none" class="pay-main" :data-id="item.id" @tap.stop="pay">立即支付</button>
+        <button hover-class="none" class="orange-btn action-main" :data-id="item.id" @tap.stop="detail">{{text.detail}}</button>
+        <button v-if="item.status === 'unpaid'" hover-class="none" class="pay-main" :data-id="item.id" @tap.stop="pay">{{text.pay}}</button>
       </view>
     </view>
 
     <view v-if="!filtered.length" class="empty">
       <view class="empty-icon"><image src="/static/assets/icons/order.svg" mode="aspectFit" /></view>
-      <view class="empty-title">还没有相关订单</view>
-      <view class="empty-desc">下单后可以在这里查看进度</view>
-      <button hover-class="none" class="primary-btn" @tap="goMenu">去点餐</button>
+      <view class="empty-title">{{text.emptyTitle}}</view>
+      <view class="empty-desc">{{text.emptyDesc}}</view>
+      <button hover-class="none" class="primary-btn" @tap="goMenu">{{text.goOrder}}</button>
     </view>
     <view class="order-list-end"></view>
   </scroll-view>
@@ -85,21 +85,23 @@ import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
 import paymentCountdown from '../../utils/payment-countdown.js'
 import orderBackend from '../../utils/order-backend.js'
+import i18n from '../../utils/i18n.js'
 
 const pageConfig = {
   data: {
     statusHeight: 20,
     active: 'all',
-    activeLabel: '全部',
+    activeLabel: i18n.page('orders').all,
     showStatusMenu: false,
     orders: [],
     filtered: [],
     cartCount: 0,
+    text: i18n.page('orders'),
     moreTabs: [
-      { id: 'all', name: '全部' },
-      { id: 'making', name: '进行中' },
-      { id: 'done', name: '已完成' },
-      { id: 'cancelled', name: '已取消' }
+      { id: 'all', name: i18n.page('orders').all },
+      { id: 'making', name: i18n.page('orders').processing },
+      { id: 'done', name: i18n.page('orders').done },
+      { id: 'cancelled', name: i18n.page('orders').cancelled }
     ]
   },
   onLoad() {
@@ -107,11 +109,18 @@ const pageConfig = {
     this.setData({ statusHeight: getApp().globalData.statusBarHeight })
   },
   onShow() {
+    const text = i18n.page('orders')
+    const moreTabs = [
+      { id: 'all', name: text.all },
+      { id: 'making', name: text.processing },
+      { id: 'done', name: text.done },
+      { id: 'cancelled', name: text.cancelled }
+    ]
     const active = uni.getStorageSync('sk_order_filter') || this.active
     uni.removeStorageSync('sk_order_filter')
-    const activeLabel = active === 'unpaid' ? '全部' : (this.moreTabs.find(item => item.id === active) || this.moreTabs[0]).name
+    const activeLabel = active === 'unpaid' ? text.all : (moreTabs.find(item => item.id === active) || moreTabs[0]).name
     const cachedOrders = orderBackend.getCachedOrders()
-    this.setData({ orders: cachedOrders, active, activeLabel, showStatusMenu: false, cartCount: store.cartSummary().count })
+    this.setData({ text, moreTabs, orders: cachedOrders, active, activeLabel, showStatusMenu: false, cartCount: store.cartSummary().count })
     this.filter()
     orderBackend.fetchOrders()
       .then(orders => {
@@ -148,14 +157,15 @@ const pageConfig = {
     this.setData({ filtered })
   },
   statusLabel(status) {
+    const text = i18n.page('orders')
     const map = {
-      unpaid: '待付款',
-      making: '商家制作中',
-      delivery: '配送中',
-      done: '已完成',
-      cancelled: '订单已取消'
+      unpaid: text.unpaid,
+      making: text.processing,
+      delivery: text.processing,
+      done: text.done,
+      cancelled: text.cancelled
     }
-    return map[status] || '进行中'
+    return map[status] || text.processing
   },
   orderSummary(item) {
     const items = item.items || []

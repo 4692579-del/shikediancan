@@ -1,5 +1,5 @@
 <template>
-<view :style="globalThemeStyle" class="page home-page">
+<view :style="globalThemeStyle" :class="`page home-page ${elderMode ? 'elder-mode' : ''}`">
   <scroll-view scroll-y scroll-with-animation :scroll-into-view="homeScrollTarget" :show-scrollbar="false" class="home-scroll" @scroll="onHomeScroll">
     <view id="home-page-top" class="home-top-anchor"></view>
     <view class="home-head" :style="`padding-top:${statusHeight}px;opacity:${headOpacity};transform:translateY(-${headLift}rpx)`">
@@ -13,8 +13,8 @@
       </view>
       <button hover-class="none" class="search-box" @tap="goSearch">
         <image class="search-icon" src="/static/assets/icons/search.svg" mode="aspectFit" />
-        <text class="placeholder">搜索美食、菜品或店铺</text>
-        <text class="search-action">搜索</text>
+        <text class="placeholder">{{text.searchPlaceholder}}</text>
+        <text class="search-action">{{text.search}}</text>
       </button>
     </view>
   <view class="section category-grid">
@@ -29,9 +29,9 @@
       <swiper-item>
         <button hover-class="none" class="hero hero-orange" @tap="goMenu" data-category="hot">
           <view class="hero-copy">
-            <text class="hero-kicker">今日甄选 · 最高减 ¥18</text>
-            <text class="hero-title">认真吃饭，\n治愈每个忙碌时刻</text>
-            <text class="hero-btn">立即点餐 →</text>
+            <text class="hero-kicker">{{text.heroKicker}}</text>
+            <text class="hero-title">{{text.heroTitle}}</text>
+            <text class="hero-btn">{{text.heroButton}}</text>
           </view>
           <view class="hero-food">
             <image class="hero-emoji" src="/static/assets/icons/meal.svg" mode="aspectFit" />
@@ -43,9 +43,9 @@
       <swiper-item>
         <button hover-class="none" class="hero hero-dark" @tap="goCoupons">
           <view class="hero-copy">
-            <text class="hero-kicker light">食刻会员日</text>
-            <text class="hero-title light">新客礼包\n三张券已到账</text>
-            <text class="hero-btn gold">去领取 →</text>
+            <text class="hero-kicker light">{{text.memberDay}}</text>
+            <text class="hero-title light">{{text.memberGift}}</text>
+            <text class="hero-btn gold">{{text.claim}}</text>
           </view>
           <view class="coupon-art">
             <view class="ticket">¥12</view>
@@ -63,15 +63,15 @@
   <view class="quick-cards section">
     <button hover-class="none" class="quick-card yellow" @tap="goMenu" data-category="rice">
       <view>
-        <text class="quick-title">工作日午餐</text>
-        <text class="quick-desc">30分钟送达</text>
+        <text class="quick-title">{{text.lunch}}</text>
+        <text class="quick-desc">{{text.lunchDesc}}</text>
       </view>
       <image class="quick-icon" src="/static/assets/icons/lunch.svg" mode="aspectFit" />
     </button>
     <button hover-class="none" class="quick-card green" @tap="goMenu" data-category="healthy">
       <view>
-        <text class="quick-title">轻盈一餐</text>
-        <text class="quick-desc">低卡也好吃</text>
+        <text class="quick-title">{{text.lightMeal}}</text>
+        <text class="quick-desc">{{text.lightMealDesc}}</text>
       </view>
       <image class="quick-icon" src="/static/assets/icons/fruit.svg" mode="aspectFit" />
     </button>
@@ -79,8 +79,8 @@
 
   <view class="section">
     <view class="section-head">
-      <text class="section-title">大家都在点</text>
-      <button hover-class="none" class="section-more" @tap="goMenu">查看全部 ›</button>
+      <text class="section-title">{{text.popular}}</text>
+      <button hover-class="none" class="section-more" @tap="goMenu">{{text.viewAll}}</button>
     </view>
     <scroll-view scroll-x :show-scrollbar="false" class="food-scroll">
       <view class="food-row">
@@ -91,7 +91,7 @@
           </view>
           <view class="food-info">
             <text class="food-name">{{item.name}}</text>
-            <view class="food-sales"><image src="/static/assets/icons/star.svg" mode="aspectFit" /><text>{{item.rating}} · 月售{{item.sales}}</text></view>
+            <view class="food-sales"><image src="/static/assets/icons/star.svg" mode="aspectFit" /><text>{{item.rating}} · {{text.monthlySales}}{{item.sales}}</text></view>
             <view class="between">
               <view><text class="price">¥{{item.price}}</text><text class="old-price">¥{{item.oldPrice}}</text></view>
               <button hover-class="none" class="add" :data-id="item.id" @tap.stop="addFood">＋</button>
@@ -104,8 +104,8 @@
 
   <view class="section">
     <view class="section-head">
-      <text class="section-title">附近好店</text>
-      <text class="section-more">按距离排序</text>
+      <text class="section-title">{{text.nearby}}</text>
+      <text class="section-more">{{text.sortDistance}}</text>
     </view>
     <button v-for="(item, index) in shops" :key="item.id" hover-class="none" class="shop-card card" :data-id="item.id" @tap="goShop">
       <view class="shop-logo" :style="`background:${item.color}`">{{item.icon}}</view>
@@ -141,10 +141,13 @@ import adaptPage from '@/utils/page-adapter.js'
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
 import productBackend from '../../utils/product-backend.js'
+import i18n from '../../utils/i18n.js'
+import elderMode from '../../utils/elder-mode.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
-    address: '请选择收货地址',
+    address: i18n.page('home').addressEmpty,
+    text: i18n.page('home'),
     categories: productBackend.getCategories(),
     foods: productBackend.getFoods().slice(0, 6),
     shops: productBackend.getShops(),
@@ -156,7 +159,8 @@ const pageConfig = {
     headLift: 0,
     loggedIn: false,
     showBackTop: false,
-    homeScrollTarget: ''
+    homeScrollTarget: '',
+    elderMode: false
   },
   onLoad() {
     this.setData({ statusHeight: getApp().globalData.statusBarHeight })
@@ -164,6 +168,7 @@ const pageConfig = {
   },
   // 每次返回首页时同步当前选择地址、购物车数量和全局主题。
   onShow() {
+    const text = i18n.page('home')
     const loggedIn = store.isLogin()
     const addresses = loggedIn ? store.getAddresses() : []
     const selectedAddress = loggedIn ? store.get('sk_selected_address', null) : null
@@ -172,7 +177,9 @@ const pageConfig = {
     const summary = loggedIn ? store.cartSummary() : { count: 0 }
     this.setData({
       loggedIn,
-      address: loggedIn ? (address ? store.getCompactAddress(address) : '请选择收货地址') : '登录后选择收货地址',
+      elderMode: elderMode.isEnabled(),
+      text,
+      address: loggedIn ? (address ? store.getCompactAddress(address) : text.addressEmpty) : text.addressLogin,
       cartCount: summary.count
     })
   },
@@ -383,6 +390,125 @@ export default adaptPage(pageConfig)
   width:100%!important;
   height:100%!important;
   display:block;
+}
+
+/* 长辈模式：降低首页信息密度，放大核心入口和点餐按钮。 */
+.home-page.elder-mode .home-head{
+  padding-bottom:30rpx;
+  border-radius:0 0 54rpx 54rpx;
+}
+.home-page.elder-mode .head-row{
+  height:88rpx;
+}
+.home-page.elder-mode .address{
+  font-size:32rpx;
+}
+.home-page.elder-mode .search-box{
+  height:84rpx;
+  border-radius:42rpx;
+  padding-left:28rpx;
+}
+.home-page.elder-mode .placeholder{
+  font-size:28rpx;
+}
+.home-page.elder-mode .search-action{
+  width:126rpx;
+  height:68rpx;
+  border-radius:34rpx;
+  font-size:28rpx;
+  font-weight:800;
+}
+.home-page.elder-mode .category-grid{
+  margin-top:24rpx;
+  padding:34rpx 14rpx 36rpx;
+  row-gap:34rpx;
+  border-radius:40rpx;
+}
+.home-page.elder-mode .category-item{
+  font-size:29rpx;
+  font-weight:650;
+  line-height:1.35;
+}
+.home-page.elder-mode .category-icon{
+  width:104rpx;
+  height:104rpx;
+  border-radius:34rpx;
+  margin-bottom:16rpx;
+}
+.home-page.elder-mode .category-icon image{
+  width:58rpx;
+  height:58rpx;
+}
+.home-page.elder-mode .hero-swiper,
+.home-page.elder-mode .dots{
+  display:none;
+}
+.home-page.elder-mode .quick-cards{
+  gap:18rpx;
+  margin-top:24rpx;
+}
+.home-page.elder-mode .quick-card{
+  height:158rpx;
+  border-radius:34rpx;
+  padding:26rpx 22rpx;
+}
+.home-page.elder-mode .quick-title{
+  font-size:32rpx;
+}
+.home-page.elder-mode .quick-desc{
+  font-size:25rpx;
+}
+.home-page.elder-mode .section-head{
+  margin:28rpx 4rpx 18rpx;
+}
+.home-page.elder-mode .section-title{
+  font-size:36rpx;
+}
+.home-page.elder-mode .section-more{
+  font-size:27rpx;
+}
+.home-page.elder-mode .food-card{
+  width:340rpx;
+  border-radius:34rpx;
+}
+.home-page.elder-mode .food-visual{
+  height:220rpx;
+}
+.home-page.elder-mode .food-name{
+  font-size:32rpx;
+}
+.home-page.elder-mode .food-sales{
+  font-size:24rpx;
+}
+.home-page.elder-mode .price{
+  font-size:36rpx;
+}
+.home-page.elder-mode .add{
+  width:62rpx!important;
+  min-width:62rpx!important;
+  max-width:62rpx!important;
+  height:62rpx;
+  font-size:34rpx;
+}
+.home-page.elder-mode .shop-card{
+  padding:30rpx;
+  border-radius:36rpx;
+}
+.home-page.elder-mode .shop-logo{
+  width:126rpx;
+  height:126rpx;
+  border-radius:34rpx;
+  font-size:40rpx;
+}
+.home-page.elder-mode .shop-name{
+  font-size:34rpx;
+  max-width:360rpx;
+}
+.home-page.elder-mode .shop-distance,
+.home-page.elder-mode .shop-desc,
+.home-page.elder-mode .shop-meta,
+.home-page.elder-mode .shop-offer{
+  font-size:25rpx;
 }
 
 </style>

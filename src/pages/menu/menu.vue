@@ -1,5 +1,5 @@
 <template>
-<view :style="globalThemeStyle" class="page menu-page">
+<view :style="globalThemeStyle" :class="`page menu-page ${elderMode ? 'elder-mode' : ''}`">
   <view class="menu-head" :style="`padding-top: ${statusHeight}px`">
     <view class="menu-nav">
       <view class="shop-brand" :style="`background:${shop.color}`">{{shop.icon}}</view>
@@ -81,6 +81,7 @@ import auth from '../../utils/auth.js'
 import membership from '../../utils/membership.js'
 import orderBackend from '../../utils/order-backend.js'
 import productBackend from '../../utils/product-backend.js'
+import elderMode from '../../utils/elder-mode.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -93,6 +94,7 @@ const pageConfig = {
     cartTotal: 0,
     membershipActive: false,
     membershipTier: '',
+    elderMode: false,
     specVisible: false,
     selectedFood: null,
     selectedSpec: '标准份',
@@ -128,6 +130,7 @@ const pageConfig = {
     }
   },
   onShow() {
+    this.setData({ elderMode: elderMode.isEnabled() })
     this.refreshCart()
   },
   refreshCart() {
@@ -401,6 +404,127 @@ export default adaptPage(pageConfig)
   line-height:48rpx;
   text-align:center;
   background:#fff;
+}
+
+/* 长辈模式：点餐页转为更清晰的大字卡片，减少次要信息干扰。 */
+.menu-page.elder-mode .menu-nav{
+  height:124rpx;
+}
+.menu-page.elder-mode .shop-brand{
+  width:82rpx;
+  height:82rpx;
+  border-radius:26rpx;
+  font-size:34rpx;
+}
+.menu-page.elder-mode .shop-title{
+  font-size:37rpx;
+}
+.menu-page.elder-mode .shop-sub{
+  font-size:24rpx;
+}
+.menu-page.elder-mode .notice,
+.menu-page.elder-mode .offer-row{
+  display:none;
+}
+.menu-page.elder-mode .category-side{
+  width:190rpx!important;
+  flex-basis:190rpx!important;
+  background:#f0f0f3;
+}
+.menu-page.elder-mode .side-item{
+  width:190rpx!important;
+  max-width:190rpx!important;
+  height:132rpx;
+  font-size:25rpx;
+  font-weight:650;
+}
+.menu-page.elder-mode .side-icon{
+  width:42rpx;
+  height:42rpx;
+}
+.menu-page.elder-mode .list-title{
+  padding:28rpx 8rpx 20rpx;
+  font-size:36rpx;
+}
+.menu-page.elder-mode .food-list{
+  padding:0 14rpx;
+}
+.menu-page.elder-mode .menu-food{
+  padding:20rpx;
+  margin-bottom:20rpx;
+  border-radius:34rpx;
+}
+.menu-page.elder-mode .menu-visual{
+  width:154rpx;
+  height:154rpx;
+  border-radius:30rpx;
+}
+.menu-page.elder-mode .mini-tag{
+  font-size:19rpx;
+  border-radius:999rpx;
+  padding:5rpx 10rpx;
+}
+.menu-page.elder-mode .menu-info{
+  padding-left:18rpx;
+}
+.menu-page.elder-mode .menu-name{
+  font-size:31rpx;
+}
+.menu-page.elder-mode .menu-desc{
+  font-size:23rpx;
+  margin:10rpx 0;
+}
+.menu-page.elder-mode .menu-sales{
+  display:none;
+}
+.menu-page.elder-mode .menu-price-row{
+  margin-top:20rpx;
+}
+.menu-page.elder-mode .menu-price{
+  font-size:36rpx;
+}
+.menu-page.elder-mode .menu-old{
+  font-size:21rpx;
+}
+.menu-page.elder-mode .spec-btn{
+  width:132rpx!important;
+  flex-basis:132rpx;
+  height:60rpx;
+  font-size:24rpx;
+  font-weight:800;
+}
+.menu-page.elder-mode .cart-bar{
+  left:34rpx;
+  right:34rpx;
+  height:112rpx;
+  bottom:calc(156rpx + env(safe-area-inset-bottom));
+}
+.menu-page.elder-mode .cart-icon{
+  width:104rpx;
+  height:112rpx;
+}
+.menu-page.elder-mode .cart-price>text:first-child{
+  font-size:36rpx;
+}
+.menu-page.elder-mode .delivery-tip{
+  font-size:22rpx;
+}
+.menu-page.elder-mode .checkout-label{
+  height:112rpx;
+  min-width:190rpx;
+  font-size:30rpx;
+}
+.menu-page.elder-mode .spec-sheet{
+  padding-left:34rpx;
+  padding-right:34rpx;
+}
+.menu-page.elder-mode .spec-name,
+.menu-page.elder-mode .spec-title{
+  font-size:34rpx;
+}
+.menu-page.elder-mode .spec-option{
+  height:92rpx;
+  font-size:24rpx;
 }
 
 </style>
