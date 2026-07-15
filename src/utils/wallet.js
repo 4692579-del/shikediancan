@@ -1,195 +1,184 @@
-// 钱包业务工具：按账号保存钱包状态、余额、账单、充值订单和支付记录。
-
+// 食刻钱包后端工具层：
+// 页面优先读取本地缓存保证显示速度，开通、关闭、充值、提现、支付和账单删除都通过 uniCloud 写入后端。
+import cloud from './cloud.js'
 import store from './store.js'
-const WALLET_KEY = 'sk_wallet_accounts'
-const RECHARGE_KEY = 'sk_wallet_recharge_orders'
-const RECHARGE_DURATION = 15 * 60 * 1000
 
-// 钱包数据按当前登录账号隔离保存。
-function accountId() {
+const FUNCTION_NAME = 'wallet-service'
+const WALLET_CACHE_KEY = 'sk_wallet_cache'
+const RECHARGE_CACHE_KEY = 'sk_wallet_recharge_orders'
+const WALLET_SYNC_TIME_KEY = 'sk_wallet_backend_sync_at'
+const WALLET_SYNC_TTL = 8000
+
+let walletPromise = null
+
+function currentUserId() {
   const user = store.get('sk_user', null)
-  if (!user) return ''
-  return user.accountId || user.phone || 'quick-default'
+  return user && (user.uid || user.userId || user.accountId || user.username)
 }
 
-function getAccounts() {
-  return store.get(WALLET_KEY, {})
+function ensureUserId() {
+  const userId = currentUserId()
+  if (!userId) throw new Error('请先登录')
+  return String(userId)
 }
 
-// 读取并修复钱包数据结构，首次使用时余额固定为零。
-function getWallet() {
-  const id = accountId()
-  if (!id) return { opened: false, balance: 0, transactions: [] }
-  const accounts = getAccounts()
-  const saved = accounts[id]
-  if (!saved) return { opened: false, balance: 0, transactions: [] }
+function emptyWallet() {
+  return { opened: false, payPasswordSet: false, balance: 0, transactions: [] }
+}
 
-  // Migrate the old auto-opened wallet that included a fixed demo balance.
-  if (typeof saved.opened !== 'boolean') {
-    accounts[id] = { opened: false, balance: 0, transactions: [] }
-    store.set(WALLET_KEY, accounts)
-    return { ...accounts[id] }
-  }
+function normalizeWallet(wallet = {}) {
   return {
-    ...saved,
-    opened: saved.opened === true,
-    balance: Number(saved.balance || 0),
-    transactions: Array.isArray(saved.transactions) ? saved.transactions : []
+    ...wallet,
+    opened: wallet.opened === true,
+    payPasswordSet: wallet.payPasswordSet === true,
+    balance: Number(wallet.balance || 0),
+    transactions: Array.isArray(wallet.transactions) ? wallet.transactions : []
   }
 }
 
-function saveWallet(wallet) {
-  const id = accountId()
-  if (!id) return wallet
-  const accounts = getAccounts()
-  accounts[id] = wallet
-  store.set(WALLET_KEY, accounts)
-  return wallet
+async function call(action, payload = {}) {
+  const result = await cloud.callFunction({
+    name: FUNCTION_NAME,
+    data: {
+      action,
+      userId: ensureUserId(),
+      ...payload
+    }
+  })
+  const data = result.result || {}
+  if (data.code !== 0) throw new Error(data.message || '钱包服务暂时不可用')
+  return data
+}
+
+function getWallet() {
+  return normalizeWallet(store.get(WALLET_CACHE_KEY, emptyWallet()))
+}
+
+function saveWalletCache(wallet) {
+  const normalized = normalizeWallet(wallet || emptyWallet())
+  store.set(WALLET_CACHE_KEY, normalized)
+  uni.setStorageSync(WALLET_SYNC_TIME_KEY, Date.now())
+  return normalized
+}
+
+async function fetchWallet(options = {}) {
+  const force = Boolean(options.force)
+  const cached = getWallet()
+  const lastSyncAt = Number(uni.getStorageSync(WALLET_SYNC_TIME_KEY) || 0)
+  if (!force && Date.now() - lastSyncAt < WALLET_SYNC_TTL) return cached
+  if (walletPromise) return walletPromise
+
+  walletPromise = call('wallet.get')
+    .then(data => saveWalletCache(data.wallet || emptyWallet()))
+    .catch(error => {
+      if (cached.opened || cached.transactions.length) return cached
+      throw error
+    })
+    .finally(() => {
+      walletPromise = null
+    })
+
+  return walletPromise
 }
 
 function isOpened() {
   return getWallet().opened === true
 }
 
-// 开通钱包时重置余额和账单，避免继承历史测试数据。
-function openWallet() {
-  return saveWallet({
-    opened: true,
-    balance: 0,
-    transactions: [],
-    openedAt: Date.now()
-  })
+async function openWallet(payPassword) {
+  const data = await call('wallet.open', { payPassword })
+  return saveWalletCache(data.wallet)
 }
 
-function closeWallet(reason) {
-  const current = getWallet()
-  if (!current.opened || Number(current.balance) !== 0) return null
-  return saveWallet({
-    opened: false,
-    balance: 0,
-    transactions: [],
-    closedAt: Date.now(),
-    closeReason: reason || ''
-  })
+async function closeWallet(reason, payPassword) {
+  const data = await call('wallet.close', { reason, payPassword })
+  return saveWalletCache(data.wallet)
 }
 
-function timeText(timestamp = Date.now()) {
-  const date = new Date(timestamp)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+async function withdraw(amount, method = 'quick', payPassword = '') {
+  const data = await call('wallet.withdraw', { amount, method, payPassword })
+  return saveWalletCache(data.wallet)
 }
 
-// 统一生成充值、提现和消费账单记录。
-function addTransaction(type, amount, title, orderId = '') {
-  const wallet = getWallet()
-  if (!wallet.opened) return null
-  const value = Number(Number(amount).toFixed(2))
-  wallet.balance = Number((wallet.balance + (type === 'income' ? value : -value)).toFixed(2))
-  wallet.transactions.unshift({
-    id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-    type,
-    amount: value,
-    title,
-    orderId,
-    createdAt: timeText()
-  })
-  return saveWallet(wallet)
+async function pay(amount, orderId, payPassword = '') {
+  const data = await call('wallet.pay', { amount, orderId, scene: 'food', payPassword })
+  return saveWalletCache(data.wallet)
 }
 
-function recharge(amount, method = '') {
-  const methodText = method === 'alipay' ? '支付宝' : method === 'quick' ? '第三方平台' : ''
-  return addTransaction('income', amount, methodText ? `${methodText}充值` : '钱包充值')
+async function payMembership(amount, paymentId, payPassword = '') {
+  const data = await call('wallet.pay', { amount, orderId: paymentId, scene: 'membership', payPassword })
+  return saveWalletCache(data.wallet)
 }
 
-function withdraw(amount, method = 'quick') {
-  const wallet = getWallet()
-  const value = Number(amount)
-  if (!wallet.opened || !Number.isFinite(value) || value <= 0 || wallet.balance < value) return null
-  return addTransaction('expense', value, `提现到${method === 'alipay' ? '支付宝' : '第三方平台'}`)
+async function changePayPassword(oldPassword, newPassword) {
+  const data = await call('wallet.payPassword.change', { oldPassword, newPassword })
+  return saveWalletCache(data.wallet)
 }
 
-// 创建充值订单。余额不会在此处增加，必须等收银台完成支付后再入账。
-// 充值先创建待支付订单，实际到账在收银台支付完成后执行。
-function createRechargeOrder(amount) {
-  const value = Number(Number(amount).toFixed(2))
-  if (!isOpened() || !Number.isFinite(value) || value < 1 || value > 5000) return null
-  const orders = store.get(RECHARGE_KEY, {})
-  const now = Date.now()
-  const order = {
-    id: `WR${now}${Math.random().toString(16).slice(2, 6)}`,
-    accountId: accountId(),
-    amount: value,
-    status: 'unpaid',
-    createdAt: now,
-    paymentDeadline: now + RECHARGE_DURATION
-  }
+async function setPayPassword(newPassword) {
+  const data = await call('wallet.payPassword.set', { newPassword })
+  return saveWalletCache(data.wallet)
+}
+
+async function changeLoginPassword(oldPassword, newPassword) {
+  const data = await call('account.loginPassword.change', { oldPassword, newPassword })
+  return data
+}
+
+async function deleteTransaction(id) {
+  const data = await call('wallet.transaction.delete', { id })
+  return saveWalletCache(data.wallet)
+}
+
+function getRechargeCache() {
+  const orders = store.get(RECHARGE_CACHE_KEY, {})
+  return orders && typeof orders === 'object' ? orders : {}
+}
+
+function getCachedRechargeOrder(id) {
+  if (!id) return null
+  return getRechargeCache()[id] || null
+}
+
+function saveRechargeCache(order) {
+  if (!order || !order.id) return order
+  const orders = getRechargeCache()
   orders[order.id] = order
-  store.set(RECHARGE_KEY, orders)
+  store.set(RECHARGE_CACHE_KEY, orders)
   return order
 }
 
-function getRechargeOrder(id) {
-  const orders = store.get(RECHARGE_KEY, {})
-  const order = orders[id]
-  if (!order || order.accountId !== accountId()) return null
-  if (order.status === 'unpaid' && Number(order.paymentDeadline) <= Date.now()) {
-    orders[id] = { ...order, status: 'cancelled', cancelledAt: Date.now(), paymentDeadline: null }
-    store.set(RECHARGE_KEY, orders)
-    return orders[id]
-  }
-  return order
+async function createRechargeOrder(amount) {
+  const data = await call('recharge.create', { amount })
+  return saveRechargeCache(data.order)
 }
 
-// 完成充值时先写入订单状态，再增加余额，确保同一充值订单只入账一次。
-// 充值支付成功后更新订单状态并增加钱包余额。
-function completeRechargeOrder(id, method) {
-  const order = getRechargeOrder(id)
-  if (!order || order.status !== 'unpaid' || method === 'wallet') return null
-  const orders = store.get(RECHARGE_KEY, {})
-  const paid = {
-    ...order,
-    status: 'paid',
-    method,
-    paidAt: Date.now(),
-    paymentDeadline: null
-  }
-  orders[id] = paid
-  store.set(RECHARGE_KEY, orders)
-  const result = recharge(order.amount, method)
-  return result ? paid : null
+async function getRechargeOrder(id) {
+  const data = await call('recharge.get', { id })
+  return saveRechargeCache(data.order)
 }
 
-// 钱包支付前校验开通状态和余额，成功后扣款并生成账单。
-function pay(amount, orderId) {
-  const wallet = getWallet()
-  const value = Number(amount)
-  if (!Number.isFinite(value) || value <= 0 || wallet.balance < value) return null
-  return addTransaction('expense', value, '食刻订单支付', orderId)
-}
-
-function payMembership(amount, paymentId) {
-  const wallet = getWallet()
-  const value = Number(amount)
-  if (!Number.isFinite(value) || value <= 0 || wallet.balance < value) return null
-  return addTransaction('expense', value, '食刻会员开通/升级', paymentId)
-}
-
-function deleteTransaction(id) {
-  const wallet = getWallet()
-  wallet.transactions = wallet.transactions.filter(item => item.id !== id)
-  return saveWallet(wallet)
+async function completeRechargeOrder(id, method) {
+  const data = await call('recharge.complete', { id, method })
+  if (data.wallet) saveWalletCache(data.wallet)
+  return saveRechargeCache(data.order)
 }
 
 export default {
   getWallet,
+  fetchWallet,
   isOpened,
   openWallet,
   closeWallet,
-  recharge,
   withdraw,
   createRechargeOrder,
   getRechargeOrder,
+  getCachedRechargeOrder,
   completeRechargeOrder,
   pay,
   payMembership,
-  deleteTransaction
+  deleteTransaction,
+  changePayPassword,
+  setPayPassword,
+  changeLoginPassword
 }

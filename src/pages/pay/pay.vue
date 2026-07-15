@@ -31,7 +31,7 @@
   <view v-if="method === 'wallet'" class="wallet-saving"><text>钱包优惠</text><text>-¥{{ walletDiscount }}</text></view>
   <button hover-class="none" :class="`primary-btn pay-btn ${expired ? 'disabled' : ''}`" :disabled="expired" @tap="pay">{{ expired ? expiredButtonText() : '确认支付 ¥' + amount }}</button>
 
-  <!-- 支付密码面板：模拟真实支付输入流程，输入任意 6 位数字即可完成支付。 -->
+  <!-- 支付密码面板：微信/支付宝为模拟输入；食刻钱包会把 6 位密码提交到后端校验。 -->
   <view v-if="showPasswordPanel" class="password-mask" @touchmove.stop="noop">
     <view class="password-backdrop"></view>
     <view class="password-panel" @tap.stop="noop">
@@ -93,6 +93,7 @@ const pageConfig = {
     showMoreMethods: false,
     showPasswordPanel: false,
     payPassword: '',
+    paymentPasswordForSubmit: '',
     passwordSlots: [0, 1, 2, 3, 4, 5],
     methods: [
       { id: 'quick', name: '微信支付', desc: '推荐使用', icon: '/static/assets/icons/payment.svg', color: '#07c160' },
@@ -105,7 +106,7 @@ const pageConfig = {
     const target = auth.buildUrl('/pages/pay/pay', options)
     if (!auth.guardPage(target)) return
     if (options.type === 'walletRecharge') {
-      const rechargeOrder = wallet.getRechargeOrder(options.recharge)
+      const rechargeOrder = await wallet.getRechargeOrder(options.recharge).catch(() => wallet.getCachedRechargeOrder(options.recharge))
       if (!rechargeOrder || rechargeOrder.status !== 'unpaid') {
         uni.showToast({ title: '充值订单已失效', icon: 'none' })
         setTimeout(() => uni.redirectTo({ url: '/pages/wallet/wallet' }), 500)
@@ -156,7 +157,7 @@ const pageConfig = {
         amount: Number(payment.amount).toFixed(2),
         originalAmount: Number(payment.originalAmount || payment.amount).toFixed(2),
         membershipPlanName: payment.planName,
-        walletOpened: wallet.isOpened()
+        walletOpened: (await wallet.fetchWallet({ force: true }).catch(() => wallet.getWallet())).opened
       })
       this.startCountdown()
       return
@@ -168,7 +169,7 @@ const pageConfig = {
       const originalAmount = Number(order.originalTotal || order.total || this.amount)
       const localOrders = store.get('sk_orders', [])
       store.set('sk_orders', [order, ...localOrders.filter(item => item.id !== order.id)])
-      this.setData({ orderId: order.id, originalAmount: originalAmount.toFixed(2), amount: originalAmount.toFixed(2), walletOpened: wallet.isOpened() })
+      this.setData({ orderId: order.id, originalAmount: originalAmount.toFixed(2), amount: originalAmount.toFixed(2), walletOpened: (await wallet.fetchWallet({ force: true }).catch(() => wallet.getWallet())).opened })
       this.startCountdown()
     } catch (err) {
       console.error('load backend order failed', err)
@@ -177,13 +178,13 @@ const pageConfig = {
     }
   },
   // 椤甸潰鎭㈠鏃堕噸鏂版鏌ラ挶鍖呭紑閫氱姸鎬佷笌鏀粯鍊掕鏃躲€?
-  onShow() {
+  async onShow() {
     if (this.businessType === 'walletRecharge') {
       this.setData({ walletOpened: false, showMoreMethods: false, method: this.method === 'alipay' ? 'alipay' : 'quick' })
       if (this.orderId) this.startCountdown()
       return
     }
-    const walletOpened = wallet.isOpened()
+    const walletOpened = (await wallet.fetchWallet({ force: true }).catch(() => wallet.getWallet())).opened
     if (!walletOpened && this.method === 'wallet') {
       this.setData({
         walletOpened,
@@ -249,7 +250,7 @@ const pageConfig = {
     this.setData({ showMoreMethods: true })
   },
   // 鏀粯鍓嶅啀娆℃牎楠岃鍗曘€佷細鍛樼瓑绾с€侀挶鍖呯姸鎬佸拰浣欓銆?
-  pay() {
+  async pay() {
     if (this.paying || this.expired) return
     // 鎷夎捣瀵嗙爜闈㈡澘鍓嶅啀娆℃牎楠岃鍗曘€佷細鍛樼姸鎬佸拰閽卞寘浣欓锛岄槻姝㈠け鏁堣鍗曠户缁敮浠樸€?
     const current = this.getCurrentPaymentOrder()
@@ -263,10 +264,11 @@ const pageConfig = {
         return uni.showModal({ title: '无法支付', content: validation.message, showCancel: false })
       }
     }
-    if (this.method === 'wallet' && !wallet.isOpened()) {
+    const walletData = this.method === 'wallet' ? await wallet.fetchWallet({ force: true }).catch(() => wallet.getWallet()) : null
+    if (this.method === 'wallet' && !walletData.opened) {
       return uni.showToast({ title: '食刻钱包未开通', icon: 'none' })
     }
-    if (this.method === 'wallet' && wallet.getWallet().balance < Number(this.amount)) {
+    if (this.method === 'wallet' && walletData.balance < Number(this.amount)) {
       return uni.showToast({ title: '钱包余额不足，请先充值', icon: 'none' })
     }
 
@@ -282,7 +284,7 @@ const pageConfig = {
 
   noop() {},
 
-  // 妯℃嫙鐪熷疄鍏綅鏀粯瀵嗙爜閿洏锛涗换鎰忓叚浣嶆暟瀛楀潎鍙€氳繃銆?
+  // 自定义六位支付密码键盘；钱包支付时会把密码交给后端校验。
   inputPayDigit(e) {
     if (this.paying) return
     const digit = String(e.currentTarget.dataset.digit || '')
@@ -290,7 +292,7 @@ const pageConfig = {
     const payPassword = `${this.payPassword}${digit}`
     this.setData({ payPassword })
 
-    // 浠绘剰鍏綅鏁板瓧鍧囧彲閫氳繃锛涚◢浣滃仠椤夸互瀹屾暣鍛堢幇鏈€鍚庝竴浣嶅瘑鐮佸渾鐐广€?
+    // 稍作停顿，让最后一位密码圆点完整显示后再提交。
     if (payPassword.length === 6) {
       clearTimeout(this.passwordSubmitTimer)
       this.passwordSubmitTimer = setTimeout(() => this.confirmPayPassword(), 180)
@@ -305,14 +307,15 @@ const pageConfig = {
   confirmPayPassword() {
     if (this.payPassword.length !== 6 || this.paying) return
 
-    // 瀵嗙爜瀹屾垚鍚庡叧闂緭鍏ラ潰鏉匡紝杩涘叆缁熶竴鐨勬敮浠樺鐞嗕腑鐘舵€併€?
+    // 密码输入完成后先暂存，随后进入统一支付处理。
+    this.paymentPasswordForSubmit = this.payPassword
     this.setData({ showPasswordPanel: false, payPassword: '', paying: true })
     this.processPayment()
   },
 
-  // 鎸変笟鍔＄被鍨嬪畬鎴愬厖鍊笺€佷細鍛樺紑閫氭垨椁愬搧璁㈠崟锛屽苟鏇存柊鏈湴鐘舵€併€?
+  // 按业务类型完成充值、会员开通或餐品订单支付，并同步本地状态。
   processPayment() {
-    // 鏀粯澶勭悊鍓嶅仛鏈€鍚庝竴娆＄姸鎬佹牎楠岋紝瑙ｅ喅杈撳叆瀵嗙爜鏈熼棿璁㈠崟瓒呮椂鐨勯棶棰樸€?
+    // 支付处理前做最后一次状态校验，解决输入密码期间订单超时的问题。
     const current = this.getCurrentPaymentOrder()
     if (!current || current.status !== 'unpaid') {
       this.setData({ paying: false })
@@ -331,7 +334,10 @@ const pageConfig = {
     this.setData({ paying: true })
     setTimeout(async () => {
       if (this.businessType === 'walletRecharge') {
-        const recharge = wallet.completeRechargeOrder(this.orderId, this.method)
+        const recharge = await wallet.completeRechargeOrder(this.orderId, this.method).catch(error => {
+          uni.showToast({ title: error.message || '充值失败，请重试', icon: 'none' })
+          return null
+        })
         if (!recharge) {
           this.setData({ paying: false })
           this.handleExpired()
@@ -343,6 +349,9 @@ const pageConfig = {
       }
       if (this.businessType === 'membership') {
         try {
+          if (this.method === 'wallet') {
+            await wallet.payMembership(Number(this.amount), this.orderId, this.paymentPasswordForSubmit || '')
+          }
           await benefitBackend.payMemberOrder(this.orderId, {
             method: this.method,
             amount: Number(this.amount),
@@ -350,16 +359,27 @@ const pageConfig = {
           })
         } catch (err) {
           console.error('backend membership pay failed', err)
+          this.paymentPasswordForSubmit = ''
           this.setData({ paying: false })
           uni.showToast({ title: err.message || '会员支付失败，请重试', icon: 'none' })
           return
         }
         this.stopCountdown()
-        if (this.method === 'wallet') wallet.payMembership(Number(this.amount), this.orderId)
+        this.paymentPasswordForSubmit = ''
         uni.redirectTo({ url: `/pages/pay-result/pay-result?type=membership&id=${this.orderId}&method=${this.method}` })
         return
       }
       let order = null
+      if (this.method === 'wallet') {
+        try {
+          await wallet.pay(Number(this.amount), this.orderId, this.paymentPasswordForSubmit || '')
+        } catch (error) {
+          this.paymentPasswordForSubmit = ''
+          this.setData({ paying: false })
+          uni.showToast({ title: error.message || '钱包支付失败，请重试', icon: 'none' })
+          return
+        }
+      }
       try {
         order = await orderBackend.payOrder(this.orderId, {
           payMethod: this.method,
@@ -368,11 +388,13 @@ const pageConfig = {
         })
       } catch (err) {
         console.error('backend pay failed', err)
+        this.paymentPasswordForSubmit = ''
         this.setData({ paying: false })
         uni.showToast({ title: '支付失败，请重试', icon: 'none' })
         return
       }
       if (!order || order.status !== 'making') {
+        this.paymentPasswordForSubmit = ''
         this.setData({ paying: false })
         this.handleExpired(order)
         return
@@ -380,7 +402,6 @@ const pageConfig = {
       this.stopCountdown()
       const localOrders = store.get('sk_orders', [])
       store.set('sk_orders', [order, ...localOrders.filter(item => item.id !== order.id)])
-      if (this.method === 'wallet') wallet.pay(Number(order.total), order.id)
       if (order.coupon) {
         try {
           await benefitBackend.markCouponUsed(order.coupon.id, order.id)
@@ -391,6 +412,7 @@ const pageConfig = {
         store.set('sk_selected_coupon', null)
       }
       uni.redirectTo({ url: `/pages/pay-result/pay-result?id=${order.id}&method=${this.method}` })
+      this.paymentPasswordForSubmit = ''
     }, 500)
   },
   // 鍒涘缓鏂拌鍗曟垨鏇存柊宸叉湁璁㈠崟锛屼繚璇佸悓涓€璁㈠崟涓嶄細琚噸澶嶅垱寤恒€?
@@ -455,7 +477,7 @@ const pageConfig = {
   },
   getCurrentPaymentOrder() {
     if (this.businessType === 'membership') return membership.getPayment(this.orderId)
-    if (this.businessType === 'walletRecharge') return wallet.getRechargeOrder(this.orderId)
+    if (this.businessType === 'walletRecharge') return wallet.getCachedRechargeOrder(this.orderId)
     return paymentCountdown.getOrder(this.orderId)
   },
   // 鍚姩涓€绉掍竴娆＄殑鏀粯鍊掕鏃讹紝骞跺湪椤甸潰闅愯棌鏃跺仠姝€?
@@ -486,6 +508,7 @@ const pageConfig = {
     if (this.expired) return
     // 鍊掕鏃剁粨鏉熸椂鍚屾鍏抽棴瀵嗙爜闈㈡澘锛岄伩鍏嶇敤鎴风户缁緭鍏ュ凡澶辨晥璁㈠崟銆?
     clearTimeout(this.passwordSubmitTimer)
+    this.paymentPasswordForSubmit = ''
     this.setData({ expired: true, countdown: '00:00', paying: false, showPasswordPanel: false, payPassword: '' })
   }
 }

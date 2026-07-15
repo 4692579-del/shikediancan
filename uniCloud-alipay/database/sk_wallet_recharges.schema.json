@@ -1,0 +1,70 @@
+{
+  "bsonType": "object",
+  "required": ["userId", "amount", "status", "createdAt", "paymentDeadline"],
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": {
+      "description": "充值订单ID"
+    },
+    "userId": {
+      "bsonType": "string",
+      "description": "用户ID"
+    },
+    "amount": {
+      "bsonType": "double",
+      "description": "充值金额"
+    },
+    "status": {
+      "bsonType": "string",
+      "enum": ["unpaid", "paid", "cancelled"],
+      "description": "充值订单状态"
+    },
+    "method": {
+      "bsonType": "string",
+      "description": "支付方式"
+    },
+    "createdAt": {
+      "bsonType": "long",
+      "description": "创建时间"
+    },
+    "updatedAt": {
+      "bsonType": "long",
+      "description": "更新时间"
+    },
+    "paymentDeadline": {
+      "bsonType": "long",
+      "description": "支付截止时间"
+    },
+    "paidAt": {
+      "bsonType": "long",
+      "description": "支付完成时间"
+    },
+    "cancelledAt": {
+      "bsonType": "long",
+      "description": "取消时间"
+    }
+  },
+  "index": [
+    {
+      "IndexName": "idx_user_recharge_status",
+      "MgoKeySchema": {
+        "MgoIndexKeys": [
+          {
+            "Name": "userId",
+            "Direction": "1"
+          },
+          {
+            "Name": "status",
+            "Direction": "1"
+          }
+        ],
+        "MgoIsUnique": false
+      }
+    }
+  ]
+}

@@ -53,8 +53,9 @@ const pageConfig = {
     membershipActive: false
   },
   // 加载当前主题、会员等级和钱包状态用于权限判断。
-  onLoad() {
+  async onLoad() {
     if (!auth.guardPage('/pages/profile-theme/profile-theme')) return
+    await wallet.fetchWallet({ force: true }).catch(() => wallet.getWallet())
     let selectedId = store.get('sk_profile_theme', 'black')
     let selectedTheme = profileTheme.getTheme(selectedId)
     if (selectedTheme.membershipLimited && !membership.hasTier(selectedTheme.requiredTier || 'plus')) {

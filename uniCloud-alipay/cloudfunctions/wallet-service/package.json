@@ -1,0 +1,7 @@
+{
+  "name": "wallet-service",
+  "version": "1.0.0",
+  "description": "食刻钱包云函数",
+  "main": "index.js",
+  "dependencies": {}
+}

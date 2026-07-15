@@ -29,12 +29,12 @@ import benefitBackend from '../../utils/benefit-backend.js'
 const pageConfig = {
   data: { statusHeight: 20, id: '', method: '快捷支付', amount: '0.00', walletDiscount: '0.00', businessType: 'food', planName: '', memberTier: 'plus', memberShortName: 'PLUS', membershipResultTitle: 'PLUS 开通成功', memberDiscountText: '95折', freeDelivery: false, themeCount: 2, expireText: '', couponCount: 0 },
   // 根据业务类型读取支付结果，准备减免金额和结果文案。
-  onLoad(options) {
+  async onLoad(options) {
     const target = auth.buildUrl('/pages/pay-result/pay-result', options)
     if (!auth.guardPage(target)) return
     const method = options.method === 'alipay' ? '支付宝支付' : options.method === 'wallet' ? '食刻钱包支付' : '快捷支付'
     if (options.type === 'walletRecharge') {
-      const recharge = wallet.getRechargeOrder(options.id)
+      const recharge = await wallet.getRechargeOrder(options.id).catch(() => wallet.getCachedRechargeOrder(options.id))
       this.setData({
         statusHeight: getApp().globalData.statusBarHeight,
         id: options.id,

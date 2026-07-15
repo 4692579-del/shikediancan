@@ -2,7 +2,7 @@
 <view :style="globalThemeStyle" class="page"><view class="safe-nav" :style="`--status-height:${statusHeight}px`"><view class="nav-row"><button hover-class="none" class="nav-back page-back" @tap="back"><image src="/static/assets/icons/back.svg" mode="aspectFit" /></button><text class="nav-title">设置</text><view class="nav-back"></view></view></view>
 <view class="settings-content">
   <view class="setting-group notification-group card"><text class="group-title">消息通知</text><button hover-class="none" class="setting-row"><text>订单状态通知</text><view :class="`switch ${notice ? 'on' : ''}`" data-field="notice" @tap="toggle"><view></view></view></button><button hover-class="none" class="setting-row"><text>优惠活动通知</text><view :class="`switch ${promotion ? 'on' : ''}`" data-field="promotion" @tap="toggle"><view></view></view></button><button hover-class="none" class="setting-row"><text>声音与振动</text><view :class="`switch ${vibration ? 'on' : ''}`" data-field="vibration" @tap="toggle"><view></view></view></button></view>
-  <view class="setting-group card"><text class="group-title">通用</text><button hover-class="none" class="setting-row" @tap="changeAvatar"><text>更换头像</text><view class="profile-entry-right"><image :src="user && user.avatar ? user.avatar : '/static/assets/icons/smile.svg'" mode="aspectFill" /><text>›</text></view></button><button hover-class="none" class="setting-row" @tap="copyUsername"><text>用户名</text><text>{{user && user.username ? user.username : '未登录'}}</text></button><button hover-class="none" class="setting-row" @tap="editNickname"><text>修改昵称</text><text>{{user && user.nickname ? user.nickname : '未设置'}} ›</text></button><button hover-class="none" class="setting-row" @tap="editTheme"><text>更改资料卡主题</text><view class="theme-entry-right"><view :style="`background:${profileTheme.color}`"></view><text>{{profileTheme.name}} ›</text></view></button><button hover-class="none" class="setting-row" @touchstart="startCacheHold" @touchend="cancelCacheHold" @touchcancel="cancelCacheHold" @tap="clearCache"><text>清除缓存</text><text>{{cacheSize}} ›</text></button></view>
+  <view class="setting-group card"><text class="group-title">通用</text><button hover-class="none" class="setting-row" @tap="copyUsername"><text>用户名</text><text>{{user && user.username ? user.username : '未登录'}} ›</text></button><button hover-class="none" class="setting-row" @tap="openAccountSecurity"><text>账号与支付安全</text><text>›</text></button><button hover-class="none" class="setting-row" @tap="openPersonalization"><text>个性化</text><text>›</text></button><button hover-class="none" class="setting-row" @touchstart="startCacheHold" @touchend="cancelCacheHold" @touchcancel="cancelCacheHold" @tap="clearCache"><text>清除缓存</text><text>{{cacheSize}} ›</text></button></view>
   <view class="setting-group card"><text class="group-title">协议与隐私</text><button hover-class="none" class="setting-row" data-type="user" @tap="openAgreement"><text>用户服务协议</text><text>›</text></button><button hover-class="none" class="setting-row" data-type="privacy" @tap="openAgreement"><text>隐私政策</text><text>›</text></button></view>
   <button hover-class="none" v-if="user" class="logout" @tap="logout">退出登录</button><button hover-class="none" v-else class="primary-btn" @tap="login">登录账号</button>
 </view></view>
@@ -165,6 +165,12 @@ const pageConfig = {
       return
     }
     uni.navigateTo({ url: '/pages/nickname/nickname' })
+  },
+  openAccountSecurity() {
+    uni.navigateTo({ url: '/pages/account-security/account-security' })
+  },
+  openPersonalization() {
+    uni.navigateTo({ url: '/pages/personalization/personalization' })
   },
   copyUsername() {
     const username = this.user && this.user.username ? this.user.username : ''

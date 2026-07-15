@@ -86,9 +86,10 @@ const pageConfig = {
     Promise.allSettled([
       favoriteBackend.fetchFavorites(),
       orderBackend.fetchOrders(),
-      benefitBackend.syncBenefits()
+      benefitBackend.syncBenefits(),
+      wallet.fetchWallet({ force: true })
     ]).then(results => {
-      const labels = ['fetch favorites failed', 'fetch orders failed', 'sync benefits failed']
+      const labels = ['fetch favorites failed', 'fetch orders failed', 'sync benefits failed', 'sync wallet failed']
       results.forEach((item, index) => {
         if (item.status === 'rejected') console.error(labels[index], item.reason)
       })

@@ -1,0 +1,76 @@
+{
+  "bsonType": "object",
+  "required": ["userId", "opened", "balance"],
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": {
+      "description": "钱包记录ID"
+    },
+    "userId": {
+      "bsonType": "string",
+      "description": "用户ID"
+    },
+    "opened": {
+      "bsonType": "bool",
+      "description": "是否开通食刻钱包"
+    },
+    "balance": {
+      "bsonType": "double",
+      "description": "钱包余额"
+    },
+    "transactions": {
+      "bsonType": "array",
+      "description": "钱包账单流水"
+    },
+    "payPasswordSalt": {
+      "bsonType": "string",
+      "description": "食刻钱包支付密码盐值"
+    },
+    "payPasswordHash": {
+      "bsonType": "string",
+      "description": "食刻钱包支付密码哈希"
+    },
+    "payPasswordUpdatedAt": {
+      "bsonType": "long",
+      "description": "支付密码更新时间"
+    },
+    "openedAt": {
+      "bsonType": "long",
+      "description": "开通时间"
+    },
+    "closedAt": {
+      "bsonType": "long",
+      "description": "关闭时间"
+    },
+    "closeReason": {
+      "description": "关闭原因"
+    },
+    "createdAt": {
+      "bsonType": "long",
+      "description": "创建时间"
+    },
+    "updatedAt": {
+      "bsonType": "long",
+      "description": "更新时间"
+    }
+  },
+  "index": [
+    {
+      "IndexName": "idx_user_wallet",
+      "MgoKeySchema": {
+        "MgoIndexKeys": [
+          {
+            "Name": "userId",
+            "Direction": "1"
+          }
+        ],
+        "MgoIsUnique": true
+      }
+    }
+  ]
+}

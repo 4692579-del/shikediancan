@@ -153,6 +153,38 @@
       }
     },
     {
+      "path": "pages/account-security/account-security",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/change-login-password/change-login-password",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/wallet-password/wallet-password",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/personalization/personalization",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
       "path": "pages/nickname/nickname",
       "style": {
         "navigationStyle": "custom",

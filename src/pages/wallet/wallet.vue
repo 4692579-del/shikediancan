@@ -4,7 +4,12 @@
     <view class="nav-row"><button hover-class="none" class="nav-back page-back" @tap="back"><image src="/static/assets/icons/back.svg" mode="aspectFit" /></button><text class="nav-title">食刻钱包</text><view class="nav-back"></view></view>
   </view>
 
-  <scroll-view v-if="!opened" scroll-y :bounces="false" :show-scrollbar="false" class="wallet-open-scroll">
+  <view v-if="!walletReady" class="wallet-state-loading">
+    <view class="wallet-loading-spinner"></view>
+    <text>正在同步钱包状态…</text>
+  </view>
+
+  <scroll-view v-if="walletReady && !opened" scroll-y :bounces="false" :show-scrollbar="false" class="wallet-open-scroll">
   <view class="wallet-open-page">
     <view class="open-hero">
       <view class="open-logo"><image src="/static/assets/icons/wallet.svg" mode="aspectFit" /></view>
@@ -27,7 +32,26 @@
   </view>
   </scroll-view>
 
-  <view v-else class="wallet-content">
+  <!-- 首次开通支付密码面板：先设置 6 位数字密码，再二次确认，最后由后端保存哈希。 -->
+  <view v-if="showOpenPassword" class="withdraw-password-mask" @touchmove.stop="noop">
+    <view class="withdraw-password-panel">
+      <view class="withdraw-password-head">
+        <button hover-class="none" @tap.stop="closeOpenPassword"><view></view><view></view></button>
+        <text>{{openPasswordStep === 'confirm' ? '确认支付密码' : '设置支付密码'}}</text><view></view>
+      </view>
+      <view class="withdraw-password-body">
+        <text>{{openPasswordStep === 'confirm' ? '请再次输入，确认用于食刻钱包支付与提现' : '请设置 6 位数字，用于食刻钱包支付与提现'}}</text>
+        <view class="withdraw-password-boxes"><view v-for="(item, index) in withdrawPasswordSlots" :key="item"><view v-if="openPasswordInput.length > index"></view></view></view>
+      </view>
+      <view class="withdraw-keyboard">
+        <button v-for="(item, index) in withdrawNumberKeys" :key="item" hover-class="none" :data-digit="item" @tap.stop="inputOpenPasswordDigit">{{item}}</button>
+        <view></view><button hover-class="none" data-digit="0" @tap.stop="inputOpenPasswordDigit">0</button>
+        <button hover-class="none" class="withdraw-delete-key" @tap.stop="deleteOpenPasswordDigit">⌫</button>
+      </view>
+    </view>
+  </view>
+
+  <view v-if="walletReady && opened" class="wallet-content">
     <view class="balance-card">
       <view class="balance-top"><view class="wallet-badge"><image src="/static/assets/icons/wallet.svg" mode="aspectFit" /></view><text>食刻钱包</text><text>安全保障</text></view>
       <text class="balance-label">可用余额（元）</text>
@@ -139,9 +163,14 @@ import profileTheme from '../../utils/profile-theme.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
+    walletReady: false,
     opened: false,
     opening: false,
     openAgreed: false,
+    showOpenPassword: false,
+    openPasswordStep: 'set',
+    openPasswordInput: '',
+    openPasswordFirst: '',
     balance: '0.00',
     balanceVisible: false,
     transactions: [],
@@ -166,13 +195,21 @@ const pageConfig = {
   },
   onLoad() {
     if (!auth.guardPage('/pages/wallet/wallet')) return
-    this.setData({ statusHeight: getApp().globalData.statusBarHeight })
+    const cached = wallet.getWallet()
+    this.setData({
+      statusHeight: getApp().globalData.statusBarHeight,
+      walletReady: cached.opened === true,
+      opened: cached.opened,
+      balance: cached.balance.toFixed(2),
+      transactions: cached.transactions.slice(0, 20)
+    })
   },
   onShow() { this.refresh() },
   // 读取钱包余额和最近账单，每次返回页面都重新同步。
-  refresh() {
-    const data = wallet.getWallet()
+  async refresh() {
+    const data = await wallet.fetchWallet({ force: true }).catch(() => wallet.getWallet())
     this.setData({
+      walletReady: true,
       opened: data.opened,
       balance: data.balance.toFixed(2),
       transactions: data.transactions.slice(0, 20),
@@ -181,16 +218,55 @@ const pageConfig = {
   },
   back() { uni.navigateBack() },
   toggleOpenAgree() { this.setData({ openAgreed: !this.openAgreed }) },
-  // 用户同意服务说明后模拟开通，首次余额必须为零。
+  // 用户同意服务说明后先设置支付密码，首次余额必须为零。
   openWallet() {
     if (!this.openAgreed) return uni.showToast({ title: '请先阅读并同意钱包服务说明', icon: 'none' })
     if (this.opening) return
+    this.setData({ showOpenPassword: true, openPasswordStep: 'set', openPasswordInput: '', openPasswordFirst: '' })
+  },
+  closeOpenPassword() {
+    if (this.opening) return
+    clearTimeout(this.openPasswordTimer)
+    this.setData({ showOpenPassword: false, openPasswordStep: 'set', openPasswordInput: '', openPasswordFirst: '' })
+  },
+  inputOpenPasswordDigit(e) {
+    if (this.opening) return
+    const digit = String(e.currentTarget.dataset.digit || '')
+    if (!/^\d$/.test(digit) || this.openPasswordInput.length >= 6) return
+    const openPasswordInput = `${this.openPasswordInput}${digit}`
+    this.setData({ openPasswordInput })
+    if (openPasswordInput.length === 6) {
+      clearTimeout(this.openPasswordTimer)
+      this.openPasswordTimer = setTimeout(() => this.handleOpenPasswordComplete(), 180)
+    }
+  },
+  deleteOpenPasswordDigit() {
+    if (this.opening || !this.openPasswordInput.length) return
+    this.setData({ openPasswordInput: this.openPasswordInput.slice(0, -1) })
+  },
+  handleOpenPasswordComplete() {
+    if (this.openPasswordInput.length !== 6) return
+    if (this.openPasswordStep === 'set') {
+      this.setData({ openPasswordFirst: this.openPasswordInput, openPasswordInput: '', openPasswordStep: 'confirm' })
+      return
+    }
+    if (this.openPasswordInput !== this.openPasswordFirst) {
+      uni.showToast({ title: '两次密码不一致，请重新设置', icon: 'none' })
+      this.setData({ openPasswordInput: '', openPasswordFirst: '', openPasswordStep: 'set' })
+      return
+    }
+    this.finishOpenWallet(this.openPasswordInput)
+  },
+  async finishOpenWallet(payPassword) {
     this.setData({ opening: true })
-    setTimeout(() => {
-      wallet.openWallet()
-      this.setData({ opening: false, opened: true, balance: '0.00', transactions: [], balanceVisible: false })
+    try {
+      const data = await wallet.openWallet(payPassword)
+      this.setData({ opening: false, showOpenPassword: false, opened: data.opened, balance: data.balance.toFixed(2), transactions: data.transactions, balanceVisible: false, openPasswordInput: '', openPasswordFirst: '', openPasswordStep: 'set' })
       uni.showToast({ title: '开通成功', icon: 'success' })
-    }, 700)
+    } catch (error) {
+      this.setData({ opening: false, openPasswordInput: '', openPasswordFirst: '', openPasswordStep: 'set' })
+      uni.showToast({ title: error.message || '开通失败，请重试', icon: 'none' })
+    }
   },
   toggleBalance() { this.setData({ balanceVisible: !this.balanceVisible }) },
   toggleBills() { this.setData({ showBills: !this.showBills, swipedBillId: '' }) },
@@ -225,7 +301,7 @@ const pageConfig = {
     if (!/^\d$/.test(digit) || this.withdrawPassword.length >= 6) return
     const withdrawPassword = `${this.withdrawPassword}${digit}`
     this.setData({ withdrawPassword })
-    // 任意六位数字均可完成密码验证，短暂停顿用于展示最后一位密码圆点。
+    // 短暂停顿用于展示最后一位密码圆点，随后交给后端校验支付密码。
     if (withdrawPassword.length === 6) {
       clearTimeout(this.withdrawPasswordTimer)
       this.withdrawPasswordTimer = setTimeout(() => this.finishWithdraw(), 180)
@@ -236,10 +312,13 @@ const pageConfig = {
     this.setData({ withdrawPassword: this.withdrawPassword.slice(0, -1) })
   },
   // 密码输入完成后扣减余额并记录提现渠道。
-  finishWithdraw() {
+  async finishWithdraw() {
     if (this.withdrawPassword.length !== 6) return
     const amount = Number(this.withdrawAmount)
-    const result = wallet.withdraw(amount, this.withdrawMethod)
+    const result = await wallet.withdraw(amount, this.withdrawMethod, this.withdrawPassword).catch(error => {
+      uni.showToast({ title: error.message || '提现失败，请重试', icon: 'none' })
+      return null
+    })
     if (!result) {
       this.setData({ showWithdrawPassword: false, withdrawPassword: '' })
       return uni.showToast({ title: '提现失败，请重试', icon: 'none' })
@@ -252,13 +331,16 @@ const pageConfig = {
   selectAmount(e) { this.setData({ selectedAmount: Number(e.currentTarget.dataset.amount), customAmount: '' }) },
   customInput(e) { this.setData({ customAmount: e.detail.value, selectedAmount: 0 }) },
   // 充值只创建待支付单，必须进入收银台支付后才到账。
-  confirmRecharge() {
+  async confirmRecharge() {
     const amount = Number(this.customAmount || this.selectedAmount)
     if (!Number.isFinite(amount) || amount < 1 || amount > 5000) {
       return uni.showToast({ title: '请输入1至5000元的金额', icon: 'none' })
     }
     // 充值先创建待支付订单，再进入收银台；此处不直接修改余额。
-    const rechargeOrder = wallet.createRechargeOrder(amount)
+    const rechargeOrder = await wallet.createRechargeOrder(amount).catch(error => {
+      uni.showToast({ title: error.message || '暂时无法充值，请重试', icon: 'none' })
+      return null
+    })
     if (!rechargeOrder) return uni.showToast({ title: '暂时无法充值，请重试', icon: 'none' })
     this.setData({ showRecharge: false })
     uni.navigateTo({
@@ -286,9 +368,13 @@ const pageConfig = {
       content: '账单记录一旦删除将无法恢复，确定要删除吗？',
       confirmText: '删除',
       confirmColor: '#ff4d3d',
-      success: res => {
+      success: async res => {
         if (!res.confirm) return
-        wallet.deleteTransaction(id)
+        const deleted = await wallet.deleteTransaction(id).catch(error => {
+          uni.showToast({ title: error.message || '删除失败，请重试', icon: 'none' })
+          return null
+        })
+        if (!deleted) return
         this.refresh()
         uni.showToast({ title: '记录已删除', icon: 'none' })
       }
@@ -327,12 +413,17 @@ const pageConfig = {
       success: res => {
         if (!res.confirm) return
         this.setData({ showCloseReasons: false, closing: true })
-        setTimeout(() => {
-          wallet.closeWallet(reason === '其他' ? other : reason)
-          const currentTheme = profileTheme.getTheme(store.get('sk_profile_theme', 'black'))
-          if (currentTheme.limited) account.saveTheme('black')
-          this.setData({ closing: false })
-          uni.navigateBack({ fail: () => uni.redirectTo({ url: '/pages/profile/profile' }) })
+        setTimeout(async () => {
+          try {
+            await wallet.closeWallet(reason === '其他' ? other : reason)
+            const currentTheme = profileTheme.getTheme(store.get('sk_profile_theme', 'black'))
+            if (currentTheme.limited) account.saveTheme('black')
+            this.setData({ closing: false })
+            uni.navigateBack({ fail: () => uni.redirectTo({ url: '/pages/profile/profile' }) })
+          } catch (error) {
+            this.setData({ closing: false })
+            uni.showToast({ title: error.message || '关闭失败，请重试', icon: 'none' })
+          }
         }, 1100)
       }
     })
@@ -345,6 +436,8 @@ export default adaptPage(pageConfig)
 <style>
 .wallet-page{height:100vh;min-height:0;padding-bottom:0;overflow:hidden;background:linear-gradient(180deg,#fff4ee 0,#f5f5f7 330rpx);display:flex;flex-direction:column}
 .wallet-nav{position:relative;z-index:50;flex-shrink:0;background:rgba(255,246,241,.96)}
+.wallet-state-loading{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#999;font-size:22rpx}
+.wallet-state-loading .wallet-loading-spinner{width:58rpx;height:58rpx;border-width:6rpx;border-top-color:var(--orange);margin-bottom:18rpx}
 .wallet-content{flex:1;min-height:0;padding:12rpx 24rpx calc(18rpx + env(safe-area-inset-bottom));display:flex;flex-direction:column;overflow:hidden}
 .balance-card{position:relative;min-height:330rpx;flex-shrink:0;overflow:hidden;padding:28rpx 30rpx;border-radius:40rpx;background:linear-gradient(135deg,#222225 0,#353238 58%,#51362c 100%);color:#fff;box-shadow:0 22rpx 50rpx rgba(36,30,30,.22)}
 .balance-top{position:relative;z-index:2;display:flex;align-items:center}.wallet-badge{width:54rpx;height:54rpx;border-radius:18rpx;background:var(--theme-gradient);display:flex;align-items:center;justify-content:center}.wallet-badge image{width:31rpx;height:31rpx;filter:brightness(0) invert(1)}.balance-top>text:nth-child(2){margin-left:14rpx;font-size:25rpx;font-weight:750}.balance-top>text:last-child{margin-left:auto;padding:7rpx 13rpx;border-radius:999rpx;background:rgba(255,255,255,.1);color:rgba(255,255,255,.72);font-size:17rpx}

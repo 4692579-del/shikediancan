@@ -20,10 +20,10 @@
         <text class="product-desc">{{food.desc}}</text>
         <view class="product-meta">
           <view><image src="/static/assets/icons/star.svg" mode="aspectFit" /><text>{{food.rating}} 分</text></view>
-          <text>鏈堝敭 {{food.sales}}</text>
+          <text>月售 {{food.sales}}</text>
           <text>约30分钟送达</text>
         </view>
-        <view class="product-price"><text>楼</text>{{displayPrice}}<text class="old-price">楼{{food.oldPrice}}</text></view>
+        <view class="product-price"><text>¥</text>{{displayPrice}}<text class="old-price">¥{{food.oldPrice}}</text></view>
       </view>
 
       <view class="detail-card card">
@@ -63,12 +63,12 @@
       <view class="sheet-handle"></view>
       <view class="sheet-product">
         <view class="sheet-visual" :style="`background:${food.bg}`"><image :src="food.icon" mode="aspectFill" /></view>
-        <view class="sheet-copy"><text>{{food.name}}</text><view><text>楼</text>{{displayPrice}}</view></view>
+        <view class="sheet-copy"><text>{{food.name}}</text><view><text>¥</text>{{displayPrice}}</view></view>
       </view>
       <text class="sheet-title">选择规格</text>
       <view class="detail-specs">
         <button v-for="(item, index) in specs" :key="item.name" hover-class="none" :class="selectedSpec === item.name ? 'on' : ''" :data-name="item.name" @tap="selectSpec">
-          <text>{{item.name}}</text><text v-if="item.extra">+楼{{item.extra}}</text><text v-else>鍘熶环</text>
+          <text>{{item.name}}</text><text v-if="item.extra">+¥{{item.extra}}</text><text v-else>原价</text>
         </button>
       </view>
       <view class="sheet-quantity-row">
@@ -86,7 +86,7 @@
 
 <script>
 import adaptPage from '@/utils/page-adapter.js'
-// 鍟嗗搧璇︽儏椤碉細灞曠ず鍟嗗搧淇℃伅锛屽鐞嗚鏍笺€佹暟閲忋€佹敹钘忓強鍔犲叆璐墿杞︺€?
+// 商品详情页：展示商品信息，处理规格、数量、收藏和加入购物车。
 
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
@@ -204,7 +204,7 @@ const pageConfig = {
       uni.showToast({ title: '收藏失败，请重试', icon: 'none' })
     }
   },
-  // 棣栨鐐瑰嚮鍏堝睍寮€瑙勬牸闈㈡澘锛岄潰鏉垮凡鎵撳紑鏃舵墠纭鍔犲叆璐墿杞︺€?
+  // 首次点击先展开规格面板，面板已打开时才确认加入购物车。
   addCart() {
     const food = this.food
     if (!this.showSpecSheet) {
@@ -213,10 +213,10 @@ const pageConfig = {
     }
     if (!auth.requireLogin(`/pages/product-detail/product-detail?id=${food.id}&openSpec=1`)) return
     const spec = this.specs.find(item => item.name === this.selectedSpec)
-    store.addCart({ ...food, price: food.price + spec.extra }, this.count, `${spec.name}${spec.extra ? ` +楼${spec.extra}` : ''}`)
+    store.addCart({ ...food, price: food.price + spec.extra }, this.count, `${spec.name}${spec.extra ? ` +¥${spec.extra}` : ''}`)
     orderBackend.saveCart(store.getCart()).catch(err => console.error('sync cart failed', err))
     this.setData({ cartCount: store.cartSummary().count, showSpecSheet: false, count: 1 })
-    uni.showToast({ title: '宸插姞鍏ヨ喘鐗╄溅', icon: 'success' })
+    uni.showToast({ title: '已加入购物车', icon: 'success' })
   },
   goCart() {
     if (auth.requireLogin('/pages/cart/cart')) uni.navigateTo({ url: '/pages/cart/cart' })
