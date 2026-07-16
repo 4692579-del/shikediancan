@@ -40,11 +40,23 @@ import auth from '../../utils/auth.js'
 import orderBackend from '../../utils/order-backend.js'
 import productBackend from '../../utils/product-backend.js'
 const pageConfig = {
-  data: { statusHeight: 20, keyword: '', results: [], searched: false, history: [], swipedHistory: '', hot: ['照烧鸡腿饭', '麻辣香锅', '杨枝甘露', '轻食沙拉', '牛肉意面', '双人餐'] },
+  data: { statusHeight: 20, keyword: '', results: [], searched: false, history: [], swipedHistory: '', hot: [] },
   onLoad() {
     if (!auth.guardPage('/pages/search/search')) return
     this.setData({ statusHeight: getApp().globalData.statusBarHeight, history: store.get('sk_search_history', []) })
-    productBackend.syncProducts().catch(err => console.error('sync products failed', err))
+    this.buildHotKeywords()
+    productBackend.syncProducts()
+      .then(() => this.buildHotKeywords())
+      .catch(err => console.error('sync products failed', err))
+  },
+  buildHotKeywords() {
+    const hot = productBackend.getFoods()
+      .slice()
+      .sort((a, b) => (Number(b.sales) || 0) - (Number(a.sales) || 0))
+      .slice(0, 6)
+      .map(item => item.name)
+      .filter(Boolean)
+    this.setData({ hot })
   },
   back() { uni.navigateBack() },
   input(e) { this.setData({ keyword: e.detail.value }); if (!e.detail.value) this.setData({ searched: false, results: [] }) },

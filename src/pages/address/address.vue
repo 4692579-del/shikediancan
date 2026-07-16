@@ -58,6 +58,7 @@ import adaptPage from '@/utils/page-adapter.js'
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
 import cloud from '../../utils/cloud.js'
+import addressBackend from '../../utils/address-backend.js'
 import { areaList } from '@vant/area-data'
 // 列表展示时将默认地址置顶，但不改变用户手动选择的地址。
 function defaultFirst(addresses = []) {
@@ -151,7 +152,7 @@ const pageConfig = {
         return
       }
       let addresses = result.addresses || []
-      addresses = store.setAddresses(addresses)
+      addresses = addressBackend.updateLocal(addresses)
       this.setData({ addresses: defaultFirst(addresses), swipedId: 0 })
     } catch (err) {
       console.error('load addresses failed:', cloud.normalizeError(err), err)
@@ -295,7 +296,7 @@ const pageConfig = {
         uni.showToast({ title: (result && result.message) || '地址保存失败', icon: 'none' })
         return
       }
-      const addresses = store.setAddresses(result.addresses || [])
+      const addresses = addressBackend.updateLocal(result.addresses || [])
       const selectedAddress = store.get('sk_selected_address', null)
       if (selectedAddress && form.id && String(selectedAddress.id) === String(form.id)) {
         const updatedSelected = addresses.find(item => String(item.id) === String(form.id))
@@ -338,7 +339,7 @@ const pageConfig = {
           uni.showToast({ title: (result && result.message) || '地址删除失败', icon: 'none' })
           return
         }
-        const addresses = store.setAddresses(result.addresses || [])
+        const addresses = addressBackend.updateLocal(result.addresses || [])
         const selectedAddress = store.get('sk_selected_address', null)
         if (selectedAddress && String(selectedAddress.id) === id) store.set('sk_selected_address', null)
         this.setData({ addresses: defaultFirst(addresses), swipedId: 0 })

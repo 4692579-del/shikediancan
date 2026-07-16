@@ -74,6 +74,7 @@ import auth from '../../utils/auth.js'
 import account from '../../utils/account.js'
 import cloud from '../../utils/cloud.js'
 import i18n from '../../utils/i18n.js'
+import addressBackend from '../../utils/address-backend.js'
 
 function getLabels() {
   const text = i18n.page('login')
@@ -204,6 +205,7 @@ const pageConfig = {
       account.login(result.user)
       store.set('sk_addresses', [])
       store.set('sk_selected_address', null)
+      await addressBackend.fetchAddresses({ force: true })
       store.set('sk_privacy_consent_v1', true)
       uni.showToast({ title: '\u767b\u5f55\u6210\u529f', icon: 'success' })
       setTimeout(() => auth.finishLogin(), 450)

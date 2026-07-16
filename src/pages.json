@@ -65,6 +65,14 @@
       }
     },
     {
+      "path": "pages/info-list/info-list",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
       "path": "pages/search/search",
       "style": {
         "navigationStyle": "custom",
@@ -193,6 +201,14 @@
       }
     },
     {
+      "path": "pages/service-manager/service-manager",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
       "path": "pages/language/language",
       "style": {
         "navigationStyle": "custom",
@@ -226,6 +242,14 @@
     },
     {
       "path": "pages/profile-theme/profile-theme",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": false,
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/switch-account/switch-account",
       "style": {
         "navigationStyle": "custom",
         "enablePullDownRefresh": false,

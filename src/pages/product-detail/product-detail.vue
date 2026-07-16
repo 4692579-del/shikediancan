@@ -41,11 +41,13 @@
 
       <button hover-class="none" class="detail-card card spec-entry" @tap="openSpecSheet"><text class="detail-title">选择规格</text><view><text>{{selectedSpec}}</text><text>›</text></view></button>
 
-      <view class="detail-card card review-card">
-        <view class="detail-heading"><text class="detail-title">用户评价</text><text>{{food.rating}} 好评</text></view>
-        <view class="review-user"><view>食</view><text>匿名用户</text><text>★★★★★</text></view>
-        <text class="review-copy">味道很好，包装也很仔细，分量足，送达时还是热的。</text>
-      </view>
+      <button hover-class="none" class="detail-card card review-entry" @tap="openReviewSheet">
+        <view>
+          <text class="detail-title">用户评价</text>
+          <text>{{productReviews.length ? productReviews.length + '条真实评价' : '暂无评价'}}</text>
+        </view>
+        <text>›</text>
+      </button>
 
       <view class="service-note"><text>食刻专送</text><text>品质保障</text><text>食材新鲜</text></view>
       <view class="product-safe"></view>
@@ -81,6 +83,67 @@
       </view>
     </view>
   </view>
+
+  <view v-if="showReviewSheet" class="review-mask" @tap="closeReviewSheet">
+    <view class="review-sheet" @tap.stop="noop">
+      <view class="review-sheet-nav">
+        <button hover-class="none" class="review-back" @tap="closeReviewSheet"><image src="/static/assets/icons/back.svg" mode="aspectFit" /></button>
+      </view>
+      <view class="review-sheet-head">
+        <view>
+          <text>用户评价</text>
+          <text>{{productReviews.length ? productReviews.length + '条真实评价' : '暂无评价'}}</text>
+        </view>
+      </view>
+      <view class="review-search">
+        <image src="/static/assets/icons/search.svg" mode="aspectFit" />
+        <input :value="reviewKeyword" placeholder="搜索评价内容" confirm-type="search" @input="onReviewSearch" />
+      </view>
+      <view class="review-controls">
+        <view class="review-dropdown-wrap">
+          <button hover-class="none" class="review-dropdown-btn" @tap="toggleReviewDropdown">
+            <text>{{reviewStarText}}</text><text :class="`review-arrow ${reviewDropdownOpen ? 'up' : ''}`"></text>
+          </button>
+          <view v-if="reviewDropdownOpen" class="review-dropdown-menu">
+            <button v-for="item in reviewStarOptions" :key="item.value" hover-class="none" :class="reviewStar === item.value ? 'active' : ''" :data-star="item.value" @tap="selectReviewStar">{{item.label}}</button>
+          </view>
+        </view>
+        <view class="review-sort-texts">
+          <text v-for="item in reviewSortOptions" :key="item.value" :class="reviewSort === item.value ? 'on' : ''" :data-sort="item.value" @tap="selectReviewSort">{{item.label}}</text>
+        </view>
+      </view>
+      <scroll-view scroll-y :show-scrollbar="false" class="review-sheet-scroll">
+        <view v-if="reviewsLoading" class="review-empty">评价加载中...</view>
+        <view v-else-if="!filteredReviews.length" class="review-empty">暂无符合条件的评价</view>
+        <view v-else class="review-list">
+          <view v-for="item in filteredReviews" :key="item.id" class="review-item">
+            <view class="review-head">
+              <image v-if="item.avatar" class="review-avatar" :src="item.avatar" mode="aspectFill" />
+              <view v-else class="review-avatar placeholder">食</view>
+              <view class="review-name">
+                <view>
+                  <text>{{item.displayName}}</text>
+                  <text v-if="item.isMine" class="mine-badge">我的</text>
+                  <text v-if="item.anonymous && item.isMine" class="anonymous-badge">匿名发布</text>
+                </view>
+                <text>{{reviewTime(item)}} · {{item.itemSummary}}</text>
+              </view>
+              <text class="review-stars">{{reviewStars(item.score)}}</text>
+            </view>
+            <text v-if="item.comment" class="review-copy">{{item.comment}}</text>
+            <view v-if="item.tags && item.tags.length" class="review-tags">
+              <text v-for="tag in item.tags" :key="tag">{{tag}}</text>
+            </view>
+            <view v-if="item.canDelete" class="review-more-row">
+              <button hover-class="none" class="review-more-btn" :data-order-id="item.orderId" :data-food-id="item.foodId" @tap="openProductReviewActions">
+                <text></text><text></text><text></text>
+              </button>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
 </view>
 </template>
 
@@ -110,7 +173,27 @@ const pageConfig = {
     displayPrice: '0.0',
     cartCount: 0,
     elderMode: false,
-    showSpecSheet: false
+    showSpecSheet: false,
+    productReviews: [],
+    filteredReviews: [],
+    reviewsLoading: false,
+    showReviewSheet: false,
+    reviewDropdownOpen: false,
+    reviewKeyword: '',
+    reviewStar: 'all',
+    reviewStarText: '全部评价',
+    reviewSort: 'new',
+    reviewStarOptions: [
+      { label: '5星', value: '5' },
+      { label: '4星', value: '4' },
+      { label: '3星', value: '3' },
+      { label: '2星', value: '2' },
+      { label: '1星', value: '1' }
+    ],
+    reviewSortOptions: [
+      { label: '最新', value: 'new' },
+      { label: '最早', value: 'old' }
+    ]
   },
   // 根据商品 id 读取详情数据，找不到商品时返回上一页。
   async onLoad(options) {
@@ -135,6 +218,7 @@ const pageConfig = {
       displayPrice: food.price.toFixed(1),
       showSpecSheet: options.openSpec === '1'
     })
+    this.loadProductReviews(food.id)
     productBackend.fetchProductDetail(food.id).then(latest => {
       if (!latest) return
       this.setData({
@@ -142,17 +226,139 @@ const pageConfig = {
         detail: productBackend.getDetailById(latest.id) || {},
         displayPrice: (latest.price + (this.specs.find(item => item.name === this.selectedSpec)?.extra || 0)).toFixed(1)
       })
+      this.loadProductReviews(latest.id)
     }).catch(err => console.error('load product detail failed', err))
   },
   onShow() {
     if (!this.food) return
     this.setData({ elderMode: elderMode.isEnabled() })
     this.syncPageState()
+    this.loadProductReviews(this.food.id)
     if (store.isLogin()) {
       favoriteBackend.fetchFavorites()
         .then(() => this.syncPageState())
         .catch(err => console.error('fetch favorites failed', err))
     }
+  },
+  async loadProductReviews(foodId = this.food && this.food.id) {
+    if (!foodId) return
+    this.setData({ reviewsLoading: true })
+    try {
+      const reviews = await orderBackend.fetchProductReviews(foodId)
+      this.setData({
+        productReviews: Array.isArray(reviews) ? reviews : [],
+        reviewsLoading: false
+      })
+      this.applyReviewFilters()
+    } catch (err) {
+      console.error('load product reviews failed', err)
+      this.setData({
+        productReviews: [],
+        filteredReviews: [],
+        reviewsLoading: false
+      })
+    }
+  },
+  onReviewSearch(e) {
+    this.setData({ reviewKeyword: e.detail.value || '' })
+    this.applyReviewFilters()
+  },
+  openReviewSheet() {
+    this.setData({ showReviewSheet: true, reviewDropdownOpen: false })
+    this.applyReviewFilters()
+  },
+  closeReviewSheet() {
+    this.setData({ showReviewSheet: false, reviewDropdownOpen: false })
+  },
+  toggleReviewDropdown() {
+    this.setData({ reviewDropdownOpen: !this.reviewDropdownOpen })
+  },
+  selectReviewStar(e) {
+    const value = String(e.currentTarget.dataset.star || 'all')
+    const option = this.reviewStarOptions.find(item => item.value === value)
+    this.setData({
+      reviewStar: value,
+      reviewStarText: option ? option.label : '全部评价',
+      reviewDropdownOpen: false
+    })
+    this.applyReviewFilters()
+  },
+  selectReviewSort(e) {
+    this.setData({ reviewSort: String(e.currentTarget.dataset.sort || 'new') })
+    this.applyReviewFilters()
+  },
+  applyReviewFilters() {
+    const keyword = String(this.reviewKeyword || '').trim().toLowerCase()
+    let list = Array.isArray(this.productReviews) ? [...this.productReviews] : []
+    if (this.reviewStar !== 'all') {
+      list = list.filter(item => Number(item.score || 0) === Number(this.reviewStar))
+    }
+    if (keyword) {
+      list = list.filter(item => {
+        const haystack = [
+          item.displayName,
+          item.itemSummary,
+          item.comment,
+          ...(Array.isArray(item.tags) ? item.tags : [])
+        ].join(' ').toLowerCase()
+        return haystack.includes(keyword)
+      })
+    }
+    list.sort((a, b) => {
+      const left = Number(a.createdAtTimestamp || 0)
+      const right = Number(b.createdAtTimestamp || 0)
+      return this.reviewSort === 'old' ? left - right : right - left
+    })
+    this.setData({ filteredReviews: list })
+  },
+  reviewStars(score) {
+    const count = Math.max(0, Math.min(5, Math.round(Number(score) || 0)))
+    return `${'★'.repeat(count)}${'☆'.repeat(5 - count)}`
+  },
+  reviewTime(item = {}) {
+    const ts = Number(item.createdAtTimestamp || 0)
+    if (ts) {
+      const date = new Date(ts)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+    return String(item.createdAt || '').split(' ')[0] || '刚刚'
+  },
+  openProductReviewActions(e) {
+    const orderId = e.currentTarget.dataset.orderId
+    const foodId = e.currentTarget.dataset.foodId
+    if (!orderId || !foodId) return
+    if (!auth.requireLogin(`/pages/product-detail/product-detail?id=${this.food.id}`)) return
+    uni.showActionSheet({
+      itemList: ['删除此商品评价'],
+      itemColor: '#ef5b3d',
+      success: res => {
+        if (res.tapIndex === 0) this.deleteProductReviewByIds(orderId, foodId)
+      }
+    })
+  },
+  async deleteProductReviewByIds(orderId, foodId) {
+    uni.showModal({
+      title: '删除商品评价',
+      content: '删除后该评价将不再显示在此商品详情页，无法恢复，也不能重新评价；我的评价列表与原订单不受影响。',
+      confirmText: '删除',
+      confirmColor: '#ef5b3d',
+      success: async res => {
+        if (!res.confirm) return
+        try {
+          await orderBackend.deleteProductReview(orderId, foodId)
+          const nextReviews = this.productReviews.filter(item => !(String(item.orderId) === String(orderId) && String(item.foodId) === String(foodId)))
+          this.setData({ productReviews: nextReviews })
+          this.applyReviewFilters()
+          uni.showToast({ title: '已删除', icon: 'none' })
+        } catch (err) {
+          console.error('delete product review failed', err)
+          uni.showToast({ title: '删除失败，请重试', icon: 'none' })
+        }
+      }
+    })
   },
   syncPageState() {
     this.setData({
@@ -255,14 +461,64 @@ export default adaptPage(pageConfig)
 .detail-heading{display:flex;align-items:center;justify-content:space-between}.detail-heading>text:last-child{color:#999;font-size:20rpx}
 .spec-entry{width:100%!important;max-width:none!important;display:flex;align-items:center;justify-content:space-between;text-align:left}
 .spec-entry>view{display:flex;align-items:center;gap:14rpx;color:#999;font-size:21rpx}.spec-entry>view text:last-child{font-size:34rpx;line-height:1}
+.review-entry{width:100%!important;max-width:none!important;display:flex;align-items:center;justify-content:space-between;text-align:left}
+.review-entry>view{display:flex;flex-direction:column;gap:8rpx}
+.review-entry>view>text:last-child{color:#999;font-size:21rpx;font-weight:400}
+.review-entry>text{color:#bbb;font-size:36rpx;line-height:1}
 .detail-specs{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10rpx;margin-top:20rpx}
 .detail-specs button{width:100%!important;min-width:0!important;max-width:none!important;height:82rpx;padding:0 4rpx!important;overflow:hidden;border:2rpx solid transparent;border-radius:999rpx;background:#f4f4f6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5rpx}
 .detail-specs button text{display:block;width:100%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .detail-specs button text:first-child{font-size:20rpx;font-weight:650}.detail-specs button text:last-child{font-size:16rpx;color:#999}
 .detail-specs button.on{border-color:var(--theme-border);background:var(--orange-soft);color:var(--orange)}.detail-specs button.on text:last-child{color:var(--theme-border)}
-.review-user{display:flex;align-items:center;margin-top:22rpx}.review-user>view{width:52rpx;height:52rpx;border-radius:50%;background:#1c1c1e;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;margin-right:12rpx}
-.review-user>text:nth-child(2){flex:1;font-size:22rpx}.review-user>text:last-child{color:#f0a020;font-size:20rpx;letter-spacing:2rpx}
-.review-copy{display:block;margin-top:14rpx;font-size:22rpx;color:#555;line-height:1.6}
+.review-mask{position:fixed;z-index:120;inset:0;background:rgba(18,18,20,.35);display:flex;align-items:flex-end}
+.review-sheet{width:100%;height:80vh;box-sizing:border-box;padding:18rpx 30rpx calc(20rpx + env(safe-area-inset-bottom));border-radius:42rpx 42rpx 0 0;background:#fff;box-shadow:0 -16rpx 50rpx rgba(20,20,24,.18);animation:review-rise .23s ease-out;display:flex;flex-direction:column}
+@keyframes review-rise{from{transform:translateY(100%);opacity:.65}to{transform:translateY(0);opacity:1}}
+.review-sheet-nav{height:62rpx;display:flex;align-items:center;justify-content:flex-start}
+.review-back{width:58rpx!important;height:58rpx;margin-left:-8rpx;padding:0!important;border:0!important;background:transparent!important;display:flex;align-items:center;justify-content:flex-start}
+.review-back image{width:30rpx;height:30rpx}
+.review-sheet-head{display:flex;align-items:center;justify-content:space-between;margin:4rpx 0 20rpx}
+.review-sheet-head>view{display:flex;align-items:flex-end;gap:14rpx}
+.review-sheet-head text:first-child{font-size:32rpx;font-weight:800;color:#111}
+.review-sheet-head text:last-child{padding-bottom:3rpx;color:#999;font-size:20rpx}
+.review-search{height:66rpx;padding:0 22rpx;border-radius:999rpx;background:#f7f7f9;display:flex;align-items:center;gap:10rpx}
+.review-search image{width:24rpx;height:24rpx;opacity:.55}
+.review-search input{flex:1;height:66rpx;color:#333;font-size:22rpx}
+.review-controls{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;margin-top:18rpx;padding-bottom:8rpx}
+.review-dropdown-wrap{position:relative}
+.review-dropdown-btn{height:52rpx;padding:0 16rpx!important;border:0!important;border-radius:16rpx;background:#fff!important;color:#111;font-size:24rpx;font-weight:750;display:flex;align-items:center;gap:10rpx;line-height:52rpx}
+.review-arrow{display:block;width:0;height:0;margin-top:3rpx;border-left:7rpx solid transparent;border-right:7rpx solid transparent;border-top:9rpx solid #aaa;transition:transform .18s ease}
+.review-arrow.up{transform:rotate(180deg)}
+.review-dropdown-menu{position:absolute;left:0;top:60rpx;width:170rpx;padding:10rpx;border-radius:18rpx;background:#fff;box-shadow:0 16rpx 44rpx rgba(22,22,28,.14)}
+.review-dropdown-menu button{width:100%!important;height:56rpx;padding:0 18rpx!important;border:0!important;border-radius:14rpx;background:#fff!important;color:#555;font-size:22rpx;text-align:left;display:flex;align-items:center}
+.review-dropdown-menu button.active{background:var(--orange-soft)!important;color:var(--orange);font-weight:750}
+.review-sort-texts{display:flex;align-items:center;gap:34rpx;padding-right:4rpx;color:#aaa;font-size:22rpx}
+.review-sort-texts text.on{color:var(--orange);font-weight:750}
+.review-sheet-scroll{flex:1;min-height:0;margin-top:2rpx}
+.review-entry::after,
+.review-back::after,
+.review-dropdown-btn::after,
+.review-dropdown-menu button::after{border:0!important;background:transparent!important}
+.review-empty{padding:34rpx 0;text-align:center;color:#aaa;font-size:22rpx}
+.review-list{padding-bottom:24rpx}
+.review-item{padding:24rpx 0;border-top:1rpx solid #f1f1f4}
+.review-item:first-child{border-top:0}
+.review-head{display:flex;align-items:center;gap:14rpx}
+.review-avatar{width:58rpx;height:58rpx;flex:0 0 58rpx;border-radius:50%;background:#1c1c1e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24rpx;font-weight:800}
+.review-avatar.placeholder{background:#1c1c1e;color:#fff}
+.review-name{flex:1;min-width:0}
+.review-name>view{display:flex;align-items:center;gap:8rpx;min-width:0}
+.review-name>view>text:first-child{max-width:170rpx;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#222;font-size:23rpx;font-weight:700}
+.review-name>text{display:block;margin-top:5rpx;color:#999;font-size:19rpx}
+.mine-badge,.anonymous-badge{padding:4rpx 9rpx;border-radius:999rpx;background:var(--orange-soft);color:var(--orange);font-size:16rpx}
+.anonymous-badge{background:#f4f4f6;color:#777}
+.review-stars{white-space:nowrap;color:#ef6a43;font-size:22rpx;letter-spacing:1rpx}
+.review-copy{display:block;margin-top:14rpx;color:#555;font-size:22rpx;line-height:1.6}
+.review-tags{display:flex;flex-wrap:wrap;gap:10rpx;margin-top:14rpx}
+.review-tags text{padding:8rpx 14rpx;border-radius:999rpx;background:#f7f7f9;color:#666;font-size:18rpx}
+.review-more-row{display:flex;justify-content:flex-start;margin-top:4rpx}
+.review-more-btn{width:72rpx!important;height:34rpx;margin:0!important;padding:0!important;border:0!important;background:transparent!important;line-height:34rpx!important;display:flex;align-items:center;justify-content:flex-start;gap:8rpx}
+.review-more-btn text{width:7rpx;height:7rpx;border-radius:50%;background:#8f8f94;display:block}
+.review-more-btn::after{border:0!important;background:transparent!important}
 .service-note{display:flex;justify-content:center;gap:30rpx;padding:18rpx 0 8rpx;color:#999;font-size:19rpx}.service-note text::before{content:"✓";color:#36a568;margin-right:5rpx}
 .product-safe{height:230rpx}
 .product-actions{position:fixed;z-index:80;left:24rpx;right:24rpx;bottom:calc(18rpx + env(safe-area-inset-bottom));height:100rpx;padding:10rpx 12rpx;border-radius:999rpx;background:rgba(255,255,255,.98);box-shadow:0 12rpx 38rpx rgba(26,26,32,.16);display:flex;align-items:center;gap:12rpx}
@@ -368,8 +624,19 @@ uni-button.favorite-entry::after{
   font-size:27rpx;
 }
 .product-page.elder-mode .review-copy,
-.product-page.elder-mode .review-user>text:nth-child(2){
+.product-page.elder-mode .review-name>view>text:first-child{
   font-size:26rpx;
+}
+.product-page.elder-mode .review-search input{
+  font-size:25rpx;
+}
+.product-page.elder-mode .review-dropdown-btn,
+.product-page.elder-mode .review-dropdown-menu button{
+  height:58rpx;
+  font-size:24rpx;
+}
+.product-page.elder-mode .review-sort-texts{
+  font-size:25rpx;
 }
 .product-page.elder-mode .service-note{
   font-size:23rpx;

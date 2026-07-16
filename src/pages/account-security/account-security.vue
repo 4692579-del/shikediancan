@@ -32,8 +32,7 @@ import auth from '../../utils/auth.js'
 
 const pageConfig = {
   data: {
-    statusHeight: 20,
-    checking: false
+    statusHeight: 20
   },
   onLoad() {
     if (!auth.guardPage('/pages/account-security/account-security')) return
@@ -42,29 +41,11 @@ const pageConfig = {
   back() {
     uni.navigateBack()
   },
-  securityCheckThenGo(url) {
-    if (this.checking) return
-    this.setData({ checking: true })
-    uni.showLoading({ title: '环境安全检测中', mask: true })
-    this.securityTimer = setTimeout(() => {
-      uni.hideLoading()
-      uni.showToast({ title: '支付环境检测安全', icon: 'none', duration: 900 })
-      this.securityNavigateTimer = setTimeout(() => {
-        this.setData({ checking: false })
-        uni.navigateTo({ url })
-      }, 850)
-    }, 4000)
-  },
   changeLoginPassword() {
-    this.securityCheckThenGo('/pages/change-login-password/change-login-password')
+    uni.navigateTo({ url: '/pages/change-login-password/change-login-password' })
   },
   changeWalletPassword() {
-    this.securityCheckThenGo('/pages/wallet-password/wallet-password')
-  },
-  onUnload() {
-    if (this.securityTimer) clearTimeout(this.securityTimer)
-    if (this.securityNavigateTimer) clearTimeout(this.securityNavigateTimer)
-    if (this.checking) uni.hideLoading()
+    uni.navigateTo({ url: '/pages/wallet-password/wallet-password' })
   }
 }
 

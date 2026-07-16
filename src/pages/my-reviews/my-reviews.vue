@@ -52,7 +52,7 @@
     </view>
 
     <view v-else>
-      <view v-for="item in reviews" :key="item.id" class="review-record card" :data-id="item.id" @tap="openReview">
+      <view v-for="item in reviews" :key="item.id" class="review-record card" :data-id="item.id">
         <view class="record-head">
           <view class="shop-logo">食</view>
           <view class="record-title">
@@ -72,9 +72,11 @@
           <text v-for="tag in item.review.tags" :key="tag">{{ tag }}</text>
         </view>
         <text class="comment-preview">{{ (item.review && item.review.comment) || '用户没有填写文字评价' }}</text>
-        <view class="record-footer">
-          <text>查看评价内容</text>
-          <text>›</text>
+        <view class="record-footer reviewed-footer">
+          <button hover-class="none" class="review-more-action" :data-id="item.id" @tap.stop="toggleReviewActions">
+            <view class="review-more-dots"><text></text><text></text><text></text></view>
+          </button>
+          <button hover-class="none" class="review-detail-action" :data-id="item.id" @tap.stop="openReview">查看评价内容</button>
         </view>
       </view>
 
@@ -103,9 +105,9 @@ const pageConfig = {
   data: {
     statusHeight: 20,
     active: 'pending',
-    orders: [],
     pendingOrders: [],
     reviews: [],
+    actionMenuId: '',
     loading: false
   },
   onLoad() {
@@ -117,35 +119,33 @@ const pageConfig = {
     this.refresh()
   },
   renderCached() {
-    const orders = orderBackend.getCachedOrders()
+    const pendingOrders = orderBackend.getCachedPendingReviews()
     const reviews = orderBackend.getCachedReviews()
-    this.setData({ orders, reviews })
-    this.buildPending()
+    this.setData({ pendingOrders, reviews })
   },
   async refresh() {
     this.setData({ loading: true })
-    const [ordersResult, reviewsResult] = await Promise.allSettled([
-      orderBackend.fetchOrders(),
+    const [pendingResult, reviewsResult] = await Promise.allSettled([
+      orderBackend.fetchPendingReviews(),
       orderBackend.fetchReviews()
     ])
 
-    if (ordersResult.status === 'fulfilled') this.setData({ orders: ordersResult.value })
-    else console.error('fetch pending review orders failed', ordersResult.reason)
+    if (pendingResult.status === 'fulfilled') this.setData({ pendingOrders: pendingResult.value })
+    else console.error('fetch pending review orders failed', pendingResult.reason)
 
     if (reviewsResult.status === 'fulfilled') this.setData({ reviews: reviewsResult.value })
     else console.error('fetch reviews failed', reviewsResult.reason)
 
-    this.buildPending()
     this.setData({ loading: false })
   },
   buildPending() {
-    const pendingOrders = (this.orders || [])
+    const pendingOrders = (this.pendingOrders || [])
       .filter(item => item.status === 'done' && !hasOrderReview(item))
       .sort((a, b) => Number(b.completedAt || b.updatedAt || 0) - Number(a.completedAt || a.updatedAt || 0))
     this.setData({ pendingOrders })
   },
   switchTab(e) {
-    this.setData({ active: e.currentTarget.dataset.tab })
+    this.setData({ active: e.currentTarget.dataset.tab, actionMenuId: '' })
   },
   back() {
     uni.navigateBack({ fail: () => uni.navigateTo({ url: '/pages/profile/profile' }) })
@@ -190,6 +190,40 @@ const pageConfig = {
       showCancel: false,
       confirmText: '知道了'
     })
+  },
+  toggleReviewActions(e) {
+    const id = e.currentTarget.dataset.id
+    this.setData({ actionMenuId: '' })
+    uni.showActionSheet({
+      itemList: ['\u5220\u9664\u8ba2\u5355'],
+      itemColor: '#1c1c1e',
+      success: res => {
+        if (res.tapIndex === 0) this.deleteReview(id)
+      }
+    })
+  },
+  async deleteReview(id) {
+    if (!id) return
+    uni.showModal({
+      title: '删除评价记录',
+      content: '这只会从“我的评价”列表中移除，商品详情页中的用户评价仍会保留。如需删除商品详情页评价，请进入对应商品详情页删除。',
+      confirmText: '删除',
+      confirmColor: '#ef5b3d',
+      success: async res => {
+        if (!res.confirm) return
+        try {
+          await orderBackend.deleteReview(id)
+          this.setData({
+            reviews: this.reviews.filter(item => item.id !== id),
+            actionMenuId: ''
+          })
+          uni.showToast({ title: '\u5df2\u5220\u9664', icon: 'none' })
+        } catch (err) {
+          console.error('delete review failed', err)
+          uni.showToast({ title: '\u5220\u9664\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5', icon: 'none' })
+        }
+      }
+    })
   }
 }
 
@@ -226,5 +260,10 @@ export default adaptPage(pageConfig)
 .record-footer text:last-child{font-size:32rpx;margin-left:4rpx;line-height:1}
 .pending-footer{justify-content:space-between;color:#777}
 .pending-footer text:last-child{color:var(--orange)}
+.reviewed-footer{position:relative;min-height:62rpx;display:grid;grid-template-columns:64rpx 1fr 178rpx;gap:0;align-items:center}
+.review-more-action{grid-column:1;width:64rpx!important;height:58rpx!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;display:flex;align-items:center;justify-content:center}
+.review-more-dots{width:36rpx;display:flex;align-items:center;justify-content:space-between}
+.review-more-dots text{width:7rpx;height:7rpx;min-width:7rpx;border-radius:50%;background:#777;display:block;flex:0 0 7rpx}
+.review-detail-action{grid-column:3;width:178rpx!important;height:58rpx!important;border-radius:999rpx!important;border:2rpx solid var(--orange)!important;background:#fff!important;color:var(--orange)!important;font-size:21rpx!important;font-weight:700!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:0!important;white-space:nowrap!important}
 .reviews-bottom-space{height:calc(48rpx + env(safe-area-inset-bottom))}
 </style>

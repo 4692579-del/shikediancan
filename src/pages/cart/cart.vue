@@ -68,6 +68,7 @@ import orderBackend from '../../utils/order-backend.js'
 import favoriteBackend from '../../utils/favorite-backend.js'
 import i18n from '../../utils/i18n.js'
 import elderMode from '../../utils/elder-mode.js'
+import addressBackend from '../../utils/address-backend.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -237,9 +238,10 @@ const pageConfig = {
     })
   },
   // 缁撶畻鍓嶄緷娆℃牎楠岄€変腑鍟嗗搧鍜屾敹璐у湴鍧€銆?
-  checkout() {
+  async checkout() {
     if (!this.count) return uni.showToast({ title: '请选择商品', icon: 'none' })
-    if (!store.getDefaultAddress()) {
+    const addresses = await addressBackend.fetchAddresses({ force: !addressBackend.hasSynced() })
+    if (!addressBackend.getCurrentAddress(addresses)) {
       uni.showModal({
         title: '暂无收货地址',
         content: '当前没有可用的收货地址，请先设置地址后继续下单。',

@@ -14,22 +14,18 @@
 
   <view class="method-card card">
     <text class="method-title">选择支付方式</text>
-    <button v-for="item in methods" :key="item.id" hover-class="none" class="method-row" :data-id="item.id" @tap="selectMethod">
+    <button v-for="item in methods" :key="item.id" hover-class="none" :class="`method-row ${item.id === 'wallet' ? 'wallet-first-row' : ''} ${item.firstBonus ? 'wallet-first-bonus-row' : ''} ${item.reopenedGuide ? 'wallet-reopen-guide-row' : ''} ${item.locked ? 'wallet-guide-row' : ''}`" :data-id="item.id" @tap="selectMethod">
       <view class="pay-icon" :style="`background:${item.color}`"><image :src="item.icon" mode="aspectFit" /></view>
       <view class="method-copy"><text>{{ item.name }}</text><text>{{ item.desc }}</text></view>
-      <view :class="`radio ${method === item.id ? 'on' : ''}`"></view>
+      <text v-if="item.tag" class="method-tag">{{ item.tag }}</text>
+      <text v-if="item.locked" class="open-wallet-pill">去开通</text>
     </button>
-    <button v-if="walletOpened && !showMoreMethods" hover-class="none" class="more-methods" @tap="toggleMoreMethods"><text>展开更多支付方式</text><view class="more-arrow"></view></button>
-    <view v-if="walletOpened && showMoreMethods" class="wallet-promo"><text>惠</text><text>使用食刻钱包支付最高立减30元</text></view>
-    <button v-if="walletOpened && showMoreMethods" hover-class="none" class="method-row wallet-row" :data-id="walletMethod.id" @tap="selectMethod">
-      <view class="pay-icon" :style="`background:${walletMethod.color}`"><image :src="walletMethod.icon" mode="aspectFit" /></view>
-      <view class="method-copy"><text>{{ walletMethod.name }}</text><text>{{ walletMethod.desc }}</text></view>
-      <view :class="`radio ${method === walletMethod.id ? 'on' : ''}`"></view>
+    <button v-if="foldedMethods.length && !showMoreMethods" hover-class="none" class="more-methods" @tap="toggleMoreMethods"><text>更多支付方式</text><view class="more-arrow"></view></button>
+    <button v-for="item in showMoreMethods ? foldedMethods : []" :key="item.id" hover-class="none" class="method-row folded-method-row" :data-id="item.id" @tap="selectMethod">
+      <view class="pay-icon" :style="`background:${item.color}`"><image :src="item.icon" mode="aspectFit" /></view>
+      <view class="method-copy"><text>{{ item.name }}</text><text>{{ item.desc }}</text></view>
     </button>
   </view>
-
-  <view v-if="method === 'wallet'" class="wallet-saving"><text>钱包优惠</text><text>-¥{{ walletDiscount }}</text></view>
-  <button hover-class="none" :class="`primary-btn pay-btn ${expired ? 'disabled' : ''}`" :disabled="expired" @tap="pay">{{ expired ? expiredButtonText() : '确认支付 ¥' + amount }}</button>
 
   <!-- 支付密码面板：微信/支付宝为模拟输入；食刻钱包会把 6 位密码提交到后端校验。 -->
   <view v-if="showPasswordPanel" class="password-mask" @touchmove.stop="noop">
@@ -44,6 +40,10 @@
         <view :class="`password-brand method-${method}`">
           <view><image :src="method === 'wallet' ? walletMethod.icon : '/static/assets/icons/payment.svg'" mode="aspectFit" /></view>
           <text>{{ method === 'quick' ? '微信支付' : method === 'alipay' ? '支付宝支付' : '食刻钱包支付' }}</text>
+        </view>
+        <view v-if="method === 'wallet' && Number(walletDiscount) > 0" class="password-wallet-saving">
+          <text>本次食刻钱包优惠</text>
+          <text>-¥{{ walletDiscount }}</text>
         </view>
         <view class="password-amount"><text>¥</text><text>{{ amount }}</text></view>
         <text class="password-order-name">{{ businessType === 'membership' || businessType === 'walletRecharge' ? membershipPlanName : '食刻·品质厨房' }}</text>
@@ -71,7 +71,6 @@ import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
 import paymentCountdown from '../../utils/payment-countdown.js'
 import wallet from '../../utils/wallet.js'
-import walletDiscount from '../../utils/wallet-discount.js'
 import membership from '../../utils/membership.js'
 import orderBackend from '../../utils/order-backend.js'
 import benefitBackend from '../../utils/benefit-backend.js'
@@ -81,24 +80,28 @@ const pageConfig = {
     amount: '0.00',
     originalAmount: '0.00',
     walletDiscount: '0.00',
+    walletDiscountOfferId: '',
     existingId: '',
     orderId: '',
     businessType: 'food',
     membershipPlanName: '',
-    method: 'quick',
+    method: 'alipay',
     paying: false,
     expired: false,
     countdown: '15:00',
     walletOpened: false,
+    walletEverOpened: false,
+    walletFirstOpenBonusEligible: false,
+    walletFirstPayUsed: false,
     showMoreMethods: false,
     showPasswordPanel: false,
     payPassword: '',
     paymentPasswordForSubmit: '',
     passwordSlots: [0, 1, 2, 3, 4, 5],
-    methods: [
-      { id: 'quick', name: '微信支付', desc: '推荐使用', icon: '/static/assets/icons/payment.svg', color: '#07c160' },
-      { id: 'alipay', name: '支付宝支付', desc: '安全快捷', icon: '/static/assets/icons/payment.svg', color: '#1677ff' }
-    ],
+    methods: [],
+    foldedMethods: [],
+    alipayMethod: { id: 'alipay', name: '支付宝支付', desc: '安全快捷', icon: '/static/assets/icons/payment.svg', color: '#1677ff' },
+    wechatMethod: { id: 'quick', name: '微信支付', desc: '推荐使用', icon: '/static/assets/icons/payment.svg', color: '#07c160' },
     walletMethod: { id: 'wallet', name: '食刻钱包支付', desc: '便捷安全支付', icon: '/static/assets/icons/wallet.svg', color: '#ff6533' }
   },
   // 鏍规嵁 type 鍖哄垎椁愬搧銆佷細鍛樺拰閽卞寘鍏呭€硷紝骞跺姞杞藉搴斿緟鏀粯璁板綍銆?
@@ -120,9 +123,13 @@ const pageConfig = {
         originalAmount: Number(rechargeOrder.amount).toFixed(2),
         membershipPlanName: '充值到食刻钱包',
         walletOpened: false,
+        walletEverOpened: false,
+        walletFirstOpenBonusEligible: false,
+        walletFirstPayUsed: false,
         showMoreMethods: false,
         method: 'quick'
       })
+      this.refreshPaymentMethods()
       this.startCountdown()
       return
     }
@@ -150,15 +157,17 @@ const pageConfig = {
         })
         return
       }
+      const walletData = await wallet.fetchWallet({ force: true }).catch(() => wallet.getWallet())
+      this.applyWalletState(walletData)
       this.setData({
         statusHeight: getApp().globalData.statusBarHeight,
         businessType: 'membership',
         orderId: payment.id,
         amount: Number(payment.amount).toFixed(2),
         originalAmount: Number(payment.originalAmount || payment.amount).toFixed(2),
-        membershipPlanName: payment.planName,
-        walletOpened: (await wallet.fetchWallet({ force: true }).catch(() => wallet.getWallet())).opened
+        membershipPlanName: payment.planName
       })
+      this.refreshPaymentMethods({ preferWallet: true })
       this.startCountdown()
       return
     }
@@ -169,7 +178,10 @@ const pageConfig = {
       const originalAmount = Number(order.originalTotal || order.total || this.amount)
       const localOrders = store.get('sk_orders', [])
       store.set('sk_orders', [order, ...localOrders.filter(item => item.id !== order.id)])
-      this.setData({ orderId: order.id, originalAmount: originalAmount.toFixed(2), amount: originalAmount.toFixed(2), walletOpened: (await wallet.fetchWallet({ force: true }).catch(() => wallet.getWallet())).opened })
+      const walletData = await wallet.fetchWallet({ force: true }).catch(() => wallet.getWallet())
+      this.applyWalletState(walletData)
+      this.setData({ orderId: order.id, originalAmount: originalAmount.toFixed(2), amount: originalAmount.toFixed(2) })
+      this.refreshPaymentMethods({ preferWallet: true })
       this.startCountdown()
     } catch (err) {
       console.error('load backend order failed', err)
@@ -181,21 +193,26 @@ const pageConfig = {
   async onShow() {
     if (this.businessType === 'walletRecharge') {
       this.setData({ walletOpened: false, showMoreMethods: false, method: this.method === 'alipay' ? 'alipay' : 'quick' })
+      this.refreshPaymentMethods()
       if (this.orderId) this.startCountdown()
       return
     }
-    const walletOpened = (await wallet.fetchWallet({ force: true }).catch(() => wallet.getWallet())).opened
+    const wasWalletOpened = this.walletOpened
+    const walletData = await wallet.fetchWallet({ force: true }).catch(() => wallet.getWallet())
+    const walletOpened = walletData.opened === true
+    this.applyWalletState(walletData)
     if (!walletOpened && this.method === 'wallet') {
       this.setData({
-        walletOpened,
         showMoreMethods: false,
         method: 'quick',
         walletDiscount: '0.00',
+        walletDiscountOfferId: '',
         amount: Number(this.originalAmount || this.amount).toFixed(2)
       })
     } else {
-      this.setData({ walletOpened, showMoreMethods: walletOpened ? this.showMoreMethods : false })
+      this.setData({ showMoreMethods: walletOpened ? this.showMoreMethods : false })
     }
+    this.refreshPaymentMethods({ preferWallet: walletOpened && !wasWalletOpened })
     if (this.orderId) this.startCountdown()
   },
   onHide() { this.stopCountdown() },
@@ -212,6 +229,17 @@ const pageConfig = {
     return this.businessType === 'membership' || this.businessType === 'walletRecharge'
       ? '支付已失效'
       : '订单已取消'
+  },
+  applyWalletState(walletData = {}) {
+    this.setData({
+      walletOpened: walletData.opened === true,
+      walletEverOpened: walletData.everOpened === true,
+      walletFirstOpenBonusEligible: walletData.firstOpenBonusEligible === true,
+      walletFirstPayUsed: walletData.firstWalletPayUsed === true
+    })
+  },
+  shouldShowFirstWalletBonus() {
+    return !this.walletFirstPayUsed && (this.walletFirstOpenBonusEligible || (!this.walletEverOpened && !this.walletOpened))
   },
   back() {
     // 瀵嗙爜闈㈡澘鎵撳紑鏃讹紝杩斿洖鎿嶄綔鍙叧闂潰鏉匡紝閬垮厤璇€€鍑烘暣涓敹閾跺彴銆?
@@ -233,20 +261,78 @@ const pageConfig = {
       }
     })
   },
+  refreshPaymentMethods(options = {}) {
+    const firstBonus = this.shouldShowFirstWalletBonus()
+    const walletRow = {
+      ...this.walletMethod,
+      desc: firstBonus ? '首次使用食刻钱包支付立减8元' : (this.walletOpened ? '便捷安全支付，支付可享随机立减' : '开通后可用钱包支付，享随机立减'),
+      tag: '',
+      locked: !this.walletOpened,
+      firstBonus,
+      reopenedGuide: !this.walletOpened && !firstBonus
+    }
+    if (this.businessType === 'walletRecharge') {
+      const method = this.method === 'alipay' ? 'alipay' : 'quick'
+      this.setData({
+        methods: [this.wechatMethod, this.alipayMethod],
+        foldedMethods: [],
+        showMoreMethods: false,
+        method,
+        walletDiscount: '0.00',
+        amount: Number(this.originalAmount || this.amount).toFixed(2)
+      })
+      return
+    }
+
+    const nextMethod = this.walletOpened
+      ? (options.preferWallet ? 'wallet' : (['wallet', 'alipay', 'quick'].includes(this.method) ? this.method : 'wallet'))
+      : (this.method === 'quick' ? 'quick' : 'alipay')
+
+    const showMoreNext = (this.showMoreMethods && this.walletOpened) || nextMethod === 'quick'
+    this.setData({
+      methods: [walletRow, this.alipayMethod],
+      foldedMethods: [this.wechatMethod],
+      showMoreMethods: showMoreNext,
+      method: nextMethod,
+      walletDiscount: nextMethod === 'wallet' ? this.walletDiscount : '0.00',
+      walletDiscountOfferId: nextMethod === 'wallet' ? this.walletDiscountOfferId : '',
+      amount: nextMethod === 'wallet' ? Number(this.originalAmount || this.amount).toFixed(2) : Number(this.originalAmount || this.amount).toFixed(2)
+    })
+  },
+  guideOpenWallet() {
+    const firstBonus = this.shouldShowFirstWalletBonus()
+    uni.showModal({
+      title: '开通食刻钱包',
+      content: firstBonus ? '首次使用食刻钱包支付可立减8元，开通后即可使用余额支付。' : '开通后可使用余额支付，并享受随机立减优惠。',
+      cancelText: '暂不开通',
+      confirmText: '去开通',
+      success: res => {
+        if (res.confirm) uni.navigateTo({ url: '/pages/wallet/wallet?from=pay' })
+      }
+    })
+  },
   // 鍒囨崲鏀粯鏂瑰紡锛涢€夋嫨閽卞寘鏃惰绠楁湰鍗曢殢鏈虹珛鍑忋€?
   selectMethod(e) {
     const method = e.currentTarget.dataset.id
     if (method === 'wallet') {
-      if (!wallet.isOpened()) return uni.showToast({ title: '请先开通食刻钱包', icon: 'none' })
-      const discount = this.ensureWalletDiscount()
-      const amount = Math.max(0.01, Number(this.originalAmount) - discount)
-      this.setData({ method, walletDiscount: discount.toFixed(2), amount: amount.toFixed(2) })
+      if (!this.walletOpened || !wallet.isOpened()) {
+        this.guideOpenWallet()
+        return
+      }
+      this.method = method
+      this.walletDiscount = '0.00'
+      this.walletDiscountOfferId = ''
+      this.amount = Number(this.originalAmount).toFixed(2)
+      this.pay()
       return
     }
-    this.setData({ method, walletDiscount: '0.00', amount: Number(this.originalAmount).toFixed(2) })
+    this.method = method
+    this.walletDiscount = '0.00'
+    this.walletDiscountOfferId = ''
+    this.amount = Number(this.originalAmount).toFixed(2)
+    this.pay()
   },
   toggleMoreMethods() {
-    if (!this.walletOpened) return
     this.setData({ showMoreMethods: true })
   },
   // 鏀粯鍓嶅啀娆℃牎楠岃鍗曘€佷細鍛樼瓑绾с€侀挶鍖呯姸鎬佸拰浣欓銆?
@@ -266,9 +352,17 @@ const pageConfig = {
     }
     const walletData = this.method === 'wallet' ? await wallet.fetchWallet({ force: true }).catch(() => wallet.getWallet()) : null
     if (this.method === 'wallet' && !walletData.opened) {
-      return uni.showToast({ title: '食刻钱包未开通', icon: 'none' })
+      this.guideOpenWallet()
+      return
     }
-    if (this.method === 'wallet' && walletData.balance < Number(this.amount)) {
+    let payableAmount = Number(this.amount)
+    if (this.method === 'wallet') {
+      const discount = await this.ensureWalletDiscount()
+      payableAmount = Math.max(0.01, Number(this.originalAmount) - discount)
+      this.setData({ walletDiscount: discount.toFixed(2), amount: payableAmount.toFixed(2) })
+    }
+    if (this.method === 'wallet' && walletData.balance < payableAmount) {
+      this.setData({ walletDiscount: '0.00', amount: Number(this.originalAmount || this.amount).toFixed(2) })
       return uni.showToast({ title: '钱包余额不足，请先充值', icon: 'none' })
     }
 
@@ -279,7 +373,12 @@ const pageConfig = {
   closePasswordPanel() {
     if (this.paying) return
     clearTimeout(this.passwordSubmitTimer)
-    this.setData({ showPasswordPanel: false, payPassword: '' })
+    const reset = { showPasswordPanel: false, payPassword: '' }
+    if (this.method === 'wallet') {
+      reset.walletDiscount = '0.00'
+      reset.amount = Number(this.originalAmount || this.amount).toFixed(2)
+    }
+    this.setData(reset)
   },
 
   noop() {},
@@ -350,7 +449,10 @@ const pageConfig = {
       if (this.businessType === 'membership') {
         try {
           if (this.method === 'wallet') {
-            await wallet.payMembership(Number(this.amount), this.orderId, this.paymentPasswordForSubmit || '')
+            await wallet.payMembership(Number(this.amount), this.orderId, this.paymentPasswordForSubmit || '', {
+              originalAmount: Number(this.originalAmount),
+              discountOfferId: this.walletDiscountOfferId
+            })
           }
           await benefitBackend.payMemberOrder(this.orderId, {
             method: this.method,
@@ -360,7 +462,7 @@ const pageConfig = {
         } catch (err) {
           console.error('backend membership pay failed', err)
           this.paymentPasswordForSubmit = ''
-          this.setData({ paying: false })
+          this.setData({ paying: false, walletDiscount: this.method === 'wallet' ? '0.00' : this.walletDiscount, walletDiscountOfferId: this.method === 'wallet' ? '' : this.walletDiscountOfferId, amount: this.method === 'wallet' ? Number(this.originalAmount || this.amount).toFixed(2) : this.amount })
           uni.showToast({ title: err.message || '会员支付失败，请重试', icon: 'none' })
           return
         }
@@ -372,10 +474,13 @@ const pageConfig = {
       let order = null
       if (this.method === 'wallet') {
         try {
-          await wallet.pay(Number(this.amount), this.orderId, this.paymentPasswordForSubmit || '')
+          await wallet.pay(Number(this.amount), this.orderId, this.paymentPasswordForSubmit || '', {
+            originalAmount: Number(this.originalAmount),
+            discountOfferId: this.walletDiscountOfferId
+          })
         } catch (error) {
           this.paymentPasswordForSubmit = ''
-          this.setData({ paying: false })
+          this.setData({ paying: false, walletDiscount: '0.00', walletDiscountOfferId: '', amount: Number(this.originalAmount || this.amount).toFixed(2) })
           uni.showToast({ title: error.message || '钱包支付失败，请重试', icon: 'none' })
           return
         }
@@ -389,7 +494,7 @@ const pageConfig = {
       } catch (err) {
         console.error('backend pay failed', err)
         this.paymentPasswordForSubmit = ''
-        this.setData({ paying: false })
+        this.setData({ paying: false, walletDiscount: this.method === 'wallet' ? '0.00' : this.walletDiscount, walletDiscountOfferId: this.method === 'wallet' ? '' : this.walletDiscountOfferId, amount: this.method === 'wallet' ? Number(this.originalAmount || this.amount).toFixed(2) : this.amount })
         uni.showToast({ title: '支付失败，请重试', icon: 'none' })
         return
       }
@@ -456,22 +561,21 @@ const pageConfig = {
     return order
   },
   // 浼樻儬棣栨鐢熸垚鍚庡啓鍏ヨ鍗曪紝淇濊瘉鍒囨崲鏀粯鏂瑰紡鏃堕噾棰濅笉鍙嶅鍙樺寲銆?
-  ensureWalletDiscount() {
+  async ensureWalletDiscount() {
+    const originalAmount = Number(this.originalAmount || this.amount)
+    const scene = this.businessType === 'membership' ? 'membership' : 'food'
+    const offer = await wallet.prepareDiscount(originalAmount, this.orderId, scene)
+    const discount = Number(offer && offer.discount ? offer.discount : 0)
+    this.setData({ walletDiscountOfferId: offer && offer.id ? offer.id : '' })
     if (this.businessType === 'membership') {
       const payment = membership.getPayment(this.orderId)
       if (!payment) return 0
-      const existing = Number(payment.walletDiscountOffer)
-      if (existing > 0) return existing
-      const discount = walletDiscount.generate(payment.originalAmount || payment.amount)
       membership.updatePayment(payment.id, { walletDiscountOffer: discount })
       return discount
     }
     const orders = paymentCountdown.normalizeOrders()
     const order = orders.find(item => item.id === this.orderId)
     if (!order) return 0
-    const existing = Number(order.walletDiscountOffer)
-    if (existing > 0) return existing
-    const discount = walletDiscount.generate(order.originalTotal || order.total)
     store.set('sk_orders', orders.map(item => item.id === order.id ? { ...item, walletDiscountOffer: discount } : item))
     return discount
   },
@@ -766,6 +870,150 @@ uni-button.method-row{
 @keyframes passwordFadeIn{from{opacity:0}to{opacity:1}}
 @keyframes passwordPanelUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 @keyframes passwordDotIn{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
+
+/* 新版收银台：食刻钱包前置展示，未开通时引导开通，已开通时默认作为主推支付方式。 */
+.method-card{
+  border-radius:30rpx!important;
+  padding:34rpx 30rpx 28rpx!important;
+  background:#fff!important;
+  box-shadow:0 18rpx 46rpx rgba(18,18,20,.045)!important;
+}
+.method-title{
+  margin-bottom:22rpx!important;
+  color:#111!important;
+  font-size:31rpx!important;
+  font-weight:750!important;
+}
+.method-row,
+uni-button.method-row{
+  position:relative;
+  height:118rpx!important;
+  min-height:118rpx!important;
+  padding:0!important;
+  overflow:visible!important;
+  background:transparent!important;
+}
+.method-row + .method-row,
+.folded-method-row{
+  margin-top:10rpx!important;
+  border-top:1rpx solid #f0f0f2!important;
+}
+.wallet-first-row{
+  min-height:124rpx!important;
+  margin:0!important;
+  border-top:0!important;
+}
+.wallet-first-row::before{
+  display:none!important;
+  content:none!important;
+}
+.wallet-guide-row::before{
+  display:none!important;
+  background:transparent!important;
+}
+.wallet-first-bonus-row .method-copy text:last-child{
+  color:#e64340!important;
+  font-weight:400!important;
+}
+.wallet-reopen-guide-row .method-copy text:last-child{
+  color:#8f949d!important;
+  font-weight:400!important;
+}
+.pay-icon{
+  width:66rpx!important;
+  height:66rpx!important;
+  flex:0 0 66rpx!important;
+  border-radius:21rpx!important;
+  margin-right:20rpx!important;
+}
+.method-copy{
+  height:auto!important;
+  justify-content:center!important;
+  gap:4rpx!important;
+}
+.method-copy text:first-child{
+  height:auto!important;
+  line-height:34rpx!important;
+  color:#141416!important;
+  font-size:30rpx!important;
+  font-weight:760!important;
+}
+.method-copy text:last-child{
+  height:auto!important;
+  line-height:25rpx!important;
+  color:#92959d!important;
+  font-size:21rpx!important;
+}
+.method-tag{
+  flex:0 0 auto;
+  margin-right:16rpx;
+  padding:7rpx 13rpx;
+  border-radius:999rpx;
+  background:rgba(238,110,67,.10);
+  color:var(--orange);
+  font-size:19rpx;
+  font-weight:700;
+  white-space:nowrap;
+}
+.open-wallet-pill{
+  flex:0 0 auto;
+  height:48rpx;
+  padding:0 18rpx;
+  border-radius:999rpx;
+  background:var(--orange);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:21rpx;
+  font-weight:750;
+  white-space:nowrap;
+}
+.radio{
+  width:38rpx!important;
+  height:38rpx!important;
+  flex:0 0 38rpx!important;
+  border-width:2rpx!important;
+  background:#fff!important;
+}
+.radio.on{
+  border:10rpx solid var(--orange)!important;
+}
+.more-methods{
+  height:72rpx!important;
+  margin-top:8rpx!important;
+  border-top:1rpx solid #f0f0f2!important;
+  color:#8a8e96!important;
+  background:transparent!important;
+}
+.more-methods text{
+  font-size:22rpx!important;
+  font-weight:600!important;
+}
+.more-arrow{
+  width:13rpx!important;
+  height:13rpx!important;
+  border-right:3rpx solid #8a8e96!important;
+  border-bottom:3rpx solid #8a8e96!important;
+}
+.password-wallet-saving{
+  width:max-content;
+  max-width:88%;
+  margin:16rpx auto 0;
+  padding:10rpx 18rpx;
+  border-radius:999rpx;
+  background:rgba(238,110,67,.10);
+  color:var(--orange);
+  display:flex;
+  align-items:center;
+  gap:14rpx;
+  font-size:21rpx;
+  font-weight:700;
+}
+.password-wallet-saving text:last-child{
+  font-size:24rpx;
+  font-weight:850;
+}
 
 </style>
 

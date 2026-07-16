@@ -1,18 +1,21 @@
-﻿<template>
+<template>
 <view :style="globalThemeStyle" class="page"><view class="safe-nav" :style="`--status-height:${statusHeight}px`"><view class="nav-row"><button hover-class="none" class="nav-back page-back" @tap="back"><image src="/static/assets/icons/back.svg" mode="aspectFit" /></button><text class="nav-title">{{text.title}}</text><view class="nav-back"></view></view></view>
 <view class="settings-content">
-  <view class="setting-group card"><text class="group-title">{{text.general}}</text><button hover-class="none" class="setting-row" @tap="copyUsername"><text>{{text.username}}</text><text>{{user && user.username ? user.username : common.notLogin}} ›</text></button><button hover-class="none" class="setting-row" @tap="openAccountSecurity"><text>{{text.accountSecurity}}</text><text>›</text></button><button hover-class="none" class="setting-row" @tap="openPersonalization"><text>{{text.personalization}}</text><text>›</text></button><button hover-class="none" class="setting-row" @touchstart="startCacheHold" @touchend="cancelCacheHold" @touchcancel="cancelCacheHold" @tap="clearCache"><text>{{text.cache}}</text><text>{{cacheSize}} ›</text></button></view>
+  <view class="setting-group card"><text class="group-title">{{text.general}}</text><button hover-class="none" class="setting-row" @tap="copyUsername"><text>{{text.username}}</text><text>{{user && user.username ? user.username : common.notLogin}} ›</text></button><button hover-class="none" class="setting-row" @tap="openAccountSecurity"><text>{{text.accountSecurity}}</text><text>›</text></button><button hover-class="none" class="setting-row" @tap="openPersonalization"><text>{{text.personalization}}</text><text>›</text></button><button hover-class="none" class="setting-row" @tap="openServiceManager"><text>{{serviceManageText}}</text><text>›</text></button><button hover-class="none" class="setting-row" @touchstart="startCacheHold" @touchend="cancelCacheHold" @touchcancel="cancelCacheHold" @tap="clearCache"><text>{{text.cache}}</text><text>{{cacheSize}} ›</text></button></view>
   <view class="setting-group notification-group card"><text class="group-title">{{text.notification}}</text><button hover-class="none" class="setting-row" data-type="order" @tap="openNotificationSettings"><text>{{text.orderTradeNotice}}</text><text>›</text></button><button hover-class="none" class="setting-row" data-type="service" @tap="openNotificationSettings"><text>{{text.benefitServiceNotice}}</text><text>›</text></button></view>
   <view class="setting-group card"><text class="group-title">{{text.accessibility}}</text><button hover-class="none" class="setting-row" @tap="openElderMode"><text>{{text.elderMode}}</text><text>›</text></button><button hover-class="none" class="setting-row" @tap="openFontSize"><text>{{text.fontSize}}</text><text>›</text></button><button hover-class="none" class="setting-row" @tap="openLanguage"><text>{{text.language}}</text><text>{{languageName}} ›</text></button></view>
   <view class="setting-group card"><text class="group-title">{{text.privacyTitle}}</text><button hover-class="none" class="setting-row" data-type="user" @tap="openAgreement"><text>{{text.userAgreement}}</text><text>›</text></button><button hover-class="none" class="setting-row" data-type="privacy" @tap="openAgreement"><text>{{text.privacyPolicy}}</text><text>›</text></button></view>
-  <button hover-class="none" v-if="user" class="switch-account-btn">切换账号</button>
+  <button hover-class="none" v-if="user" class="switch-account-btn" @tap="openSwitchAccount">{{text.switchAccount || switchAccountText}}</button>
   <button hover-class="none" v-if="user" class="logout" @tap="logout">{{text.logout}}</button><button hover-class="none" v-else class="primary-btn" @tap="login">{{text.login}}</button>
+  <view class="info-list-links">
+    <button hover-class="none" data-type="personal" @tap="openInfoList">{{infoListText.personal}}</button>
+    <button hover-class="none" data-type="third" @tap="openInfoList">{{infoListText.third}}</button>
+  </view>
 </view></view>
 </template>
 
 <script>
 import adaptPage from '@/utils/page-adapter.js'
-// 璁剧疆椤碉細绠＄悊閫氱煡鍋忓ソ銆佸ご鍍忔樀绉般€佷富棰樸€佺紦瀛樸€佺櫥褰曠姸鎬佸強娴嬭瘯鐢ㄤ細鍛橀噸缃€?
 
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
@@ -22,6 +25,7 @@ import membership from '../../utils/membership.js'
 import cloud from '../../utils/cloud.js'
 import benefitBackend from '../../utils/benefit-backend.js'
 import i18n from '../../utils/i18n.js'
+import commonServices from '../../utils/common-services.js'
 
 function readBlobAsDataUrl(blob) {
   return new Promise((resolve, reject) => {
@@ -41,8 +45,6 @@ function loadImage(url) {
   })
 }
 
-// H5 绔洿浼?uniCloud 浜戝瓨鍌ㄥ彲鑳藉洜涓婁紶瀵嗛挜澶辫触鑰屼笉鍙敤銆?
-// 杩欓噷灏嗙敤鎴烽€夋嫨鐨勫浘鐗囧帇缂╂垚澶村儚灏哄锛屽啀浜ょ粰浜戝嚱鏁板啓鍏ョ敤鎴疯祫鏂欒〃锛屼繚璇佸ご鍍忚祫鏂欑湡姝ｅ悗绔寲銆?
 async function filePathToAvatarDataUrl(filePath) {
   if (!filePath) throw new Error('EMPTY_FILE')
   if (/^data:image\//i.test(filePath)) return filePath
@@ -73,8 +75,42 @@ async function filePathToAvatarDataUrl(filePath) {
   }
 }
 
+function getSwitchAccountText() {
+  const locale = i18n.getLocale()
+  if (locale === 'en') return 'Switch account'
+  if (locale === 'ja') return 'アカウント切替'
+  if (locale === 'zh-Hant') return '切換帳號'
+  return '切换账号'
+}
+
+function getInfoListText() {
+  const locale = i18n.getLocale()
+  if (locale === 'en') {
+    return {
+      personal: '《Personal Information Collection List》',
+      third: '《Third-party Data Sharing List》'
+    }
+  }
+  if (locale === 'ja') {
+    return {
+      personal: '《個人情報収集リスト》',
+      third: '《第三者情報共有リスト》'
+    }
+  }
+  if (locale === 'zh-Hant') {
+    return {
+      personal: '《個人資訊收集清單》',
+      third: '《第三方資訊資料共享清單》'
+    }
+  }
+  return {
+    personal: '《个人信息收集清单》',
+    third: '《第三方信息数据共享清单》'
+  }
+}
+
 const pageConfig = {
-  data: { statusHeight: 20, user: null, profileTheme: profileTheme.getTheme('black'), cacheSize: '2.4 MB', text: i18n.page('settings'), common: i18n.page('common'), languageName: i18n.getLocaleName() },
+  data: { statusHeight: 20, user: null, profileTheme: profileTheme.getTheme('black'), cacheSize: '2.4 MB', text: i18n.page('settings'), common: i18n.page('common'), languageName: i18n.getLocaleName(), switchAccountText: getSwitchAccountText(), infoListText: getInfoListText(), serviceManageText: commonServices.getLabel('serviceManager') },
   onLoad() {
     if (!auth.guardPage('/pages/settings/settings')) return
     this.setData({ statusHeight: getApp().globalData.statusBarHeight })
@@ -85,7 +121,10 @@ const pageConfig = {
       profileTheme: profileTheme.getTheme(store.get('sk_profile_theme', 'black')),
       text: i18n.page('settings'),
       common: i18n.page('common'),
-      languageName: i18n.getLocaleName()
+      languageName: i18n.getLocaleName(),
+      switchAccountText: getSwitchAccountText(),
+      infoListText: getInfoListText(),
+      serviceManageText: commonServices.getLabel('serviceManager')
     })
   },
   back() { uni.navigateBack() },
@@ -93,7 +132,7 @@ const pageConfig = {
     const type = e.currentTarget.dataset.type || 'order'
     uni.navigateTo({ url: `/pages/notification-settings/notification-settings?type=${type}` })
   },
-  // 澶村儚鏀逛负鐢ㄦ埛鑷畾涔変笂浼狅細閫夋嫨鏈湴鍥剧墖鍚庡帇缂╀负澶村儚鏁版嵁锛屽啀閫氳繃浜戝嚱鏁板啓鍏ョ敤鎴疯祫鏂欒〃銆?
+
   async changeAvatar() {
     if (!this.user || !this.user.uid) {
       uni.showToast({ title: '璇峰厛閲嶆柊鐧诲綍璐﹀彿', icon: 'none' })
@@ -151,10 +190,23 @@ const pageConfig = {
     uni.navigateTo({ url: '/pages/nickname/nickname' })
   },
   openAccountSecurity() {
-    uni.navigateTo({ url: '/pages/account-security/account-security' })
+    if (this.securityChecking) return
+    this.securityChecking = true
+    uni.showLoading({ title: '环境安全检测中', mask: true })
+    this.securityCheckTimer = setTimeout(() => {
+      uni.hideLoading()
+      uni.showToast({ title: '支付环境检测安全', icon: 'success', duration: 900 })
+      this.securityNavigateTimer = setTimeout(() => {
+        this.securityChecking = false
+        uni.navigateTo({ url: '/pages/account-security/account-security' })
+      }, 850)
+    }, 4000)
   },
   openPersonalization() {
     uni.navigateTo({ url: '/pages/personalization/personalization' })
+  },
+  openServiceManager() {
+    uni.navigateTo({ url: '/pages/service-manager/service-manager' })
   },
   openLanguage() {
     uni.navigateTo({ url: '/pages/language/language' })
@@ -178,9 +230,16 @@ const pageConfig = {
   },
   openAgreement(e) {
     const type = e.currentTarget.dataset.type === 'privacy' ? 'privacy' : 'user'
-    uni.navigateTo({ url: `/pages/legal/legal?type=${type}` })
+    uni.navigateTo({ url: `/pages/legal/legal?type=${type}&locale=${i18n.getLocale()}` })
   },
-  // 闀挎寜娓呴櫎缂撳瓨涓夌瑙﹀彂璇剧▼娴嬭瘯鐢ㄧ殑浼氬憳閲嶇疆闅愯棌鍔熻兘銆?
+  openInfoList(e) {
+    const type = e.currentTarget.dataset.type === 'third' ? 'third' : 'personal'
+    uni.navigateTo({ url: `/pages/info-list/info-list?type=${type}&locale=${i18n.getLocale()}` })
+  },
+  openSwitchAccount() {
+    uni.navigateTo({ url: '/pages/switch-account/switch-account' })
+  },
+
   startCacheHold() {
     this.cancelCacheHold()
     this.cacheHoldTriggered = false
@@ -196,7 +255,7 @@ const pageConfig = {
       this.cacheHoldTimer = null
     }
   },
-  // 鏅€氱偣鍑诲彧妯℃嫙娓呴櫎缂撳瓨锛屼笉鍒犻櫎璁㈠崟銆佸湴鍧€绛変笟鍔℃暟鎹€?
+
   clearCache() {
     if (this.cacheHoldTriggered) {
       this.cacheHoldTriggered = false
@@ -204,7 +263,7 @@ const pageConfig = {
     }
     uni.showModal({ title: '清除缓存', content: '不会清除登录、订单和地址信息', success: res => { if (res.confirm) { uni.removeStorageSync('sk_search_history'); this.setData({ cacheSize: '0 KB' }); uni.showToast({ title: '清理完成' }) } } })
   },
-  // 浠呬緵寮€鍙戞祴璇曪細瀹屾暣绉婚櫎褰撳墠璐﹀彿浼氬憳韬唤鍙婁細鍛樿鍗曘€?
+
   async resetMembershipForTesting() {
     if (!this.user) return
     try {
@@ -224,7 +283,13 @@ const pageConfig = {
   },
   logout() { uni.showModal({ title: '退出登录', content: '退出后订单和本地数据仍会保留', confirmColor: '#ff4d3d', success: res => { if (res.confirm) { account.logout(); this.setData({ user: null, profileTheme: profileTheme.getTheme('black') }); uni.showToast({ title: '已退出登录' }); setTimeout(() => uni.redirectTo({ url: '/pages/profile/profile' }), 500) } } }) },
   login() { uni.navigateTo({ url: '/pages/login/login' }) },
-  onUnload() { this.cancelCacheHold() }
+  onUnload() {
+    this.cancelCacheHold()
+    if (this.securityCheckTimer) clearTimeout(this.securityCheckTimer)
+    if (this.securityNavigateTimer) clearTimeout(this.securityNavigateTimer)
+    if (this.securityChecking) uni.hideLoading()
+    this.securityChecking = false
+  }
 }
 
 export default adaptPage(pageConfig)
@@ -282,7 +347,6 @@ export default adaptPage(pageConfig)
   margin-left:auto;
 }
 
-/* 璁剧疆椤规敼涓烘洿鑸掑睍鐨勬棤鍒嗗壊绾垮垪琛細瀛楅噸鏀捐交銆佸瓧鍙风暐澧烇紝鏁翠綋鏇存帴杩?iOS 鍗＄墖瑙傛劅銆?*/
 .group-title{
   font-size:21rpx!important;
   font-weight:400;
@@ -321,5 +385,26 @@ export default adaptPage(pageConfig)
   font-weight:400;
 }
 .notification-group .switch{position:relative;z-index:3;pointer-events:auto}
+.info-list-links{
+  margin:26rpx 12rpx 10rpx;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+  gap:14rpx 22rpx;
+}
+.info-list-links button{
+  padding:0!important;
+  margin:0!important;
+  width:auto!important;
+  height:auto!important;
+  line-height:34rpx;
+  color:#2f7df6;
+  font-size:23rpx;
+  font-weight:500;
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+}
 
 </style>

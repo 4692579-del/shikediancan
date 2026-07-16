@@ -9,10 +9,13 @@ const CART_SYNC_TIME_KEY = 'sk_cart_backend_sync_at'
 const CART_SYNC_TTL = 8000
 const REVIEWS_SYNC_TIME_KEY = 'sk_reviews_backend_sync_at'
 const REVIEWS_SYNC_TTL = 8000
+const PENDING_REVIEWS_SYNC_TIME_KEY = 'sk_pending_reviews_backend_sync_at'
+const PENDING_REVIEWS_SYNC_TTL = 8000
 
 let ordersPromise = null
 let cartPromise = null
 let reviewsPromise = null
+let pendingReviewsPromise = null
 
 function currentUserId() {
   const user = store.get('sk_user', null)
@@ -33,6 +36,19 @@ async function call(action, payload = {}) {
       userId: ensureUserId(),
       ...payload
     }
+  })
+  const data = result.result || {}
+  if (data.code !== 0) throw new Error(data.message || '后端服务暂时不可用')
+  return data
+}
+
+async function callOptionalUser(action, payload = {}) {
+  const userId = currentUserId()
+  const requestData = { action, ...payload }
+  if (userId) requestData.userId = String(userId)
+  const result = await cloud.callFunction({
+    name: FUNCTION_NAME,
+    data: requestData
   })
   const data = result.result || {}
   if (data.code !== 0) throw new Error(data.message || '后端服务暂时不可用')
@@ -159,6 +175,8 @@ async function reviewOrder(id, review) {
   const data = await call('order.review', { id, review })
   if (data.order) patchOrderCache(data.order)
   uni.removeStorageSync(REVIEWS_SYNC_TIME_KEY)
+  uni.removeStorageSync(PENDING_REVIEWS_SYNC_TIME_KEY)
+  savePendingReviewsCache(getCachedPendingReviews().filter(item => item.id !== id))
   return data.order
 }
 
@@ -171,6 +189,17 @@ function saveReviewsCache(reviews = []) {
   store.set('sk_reviews', Array.isArray(reviews) ? reviews : [])
   uni.setStorageSync(REVIEWS_SYNC_TIME_KEY, Date.now())
   return getCachedReviews()
+}
+
+function getCachedPendingReviews() {
+  const orders = store.get('sk_pending_reviews', [])
+  return Array.isArray(orders) ? orders : []
+}
+
+function savePendingReviewsCache(orders = []) {
+  store.set('sk_pending_reviews', Array.isArray(orders) ? orders : [])
+  uni.setStorageSync(PENDING_REVIEWS_SYNC_TIME_KEY, Date.now())
+  return getCachedPendingReviews()
 }
 
 async function fetchReviews(options = {}) {
@@ -193,10 +222,44 @@ async function fetchReviews(options = {}) {
   return reviewsPromise
 }
 
+async function fetchPendingReviews(options = {}) {
+  const force = Boolean(options.force)
+  const cached = getCachedPendingReviews()
+  const lastSyncAt = Number(uni.getStorageSync(PENDING_REVIEWS_SYNC_TIME_KEY) || 0)
+  if (!force && cached.length && Date.now() - lastSyncAt < PENDING_REVIEWS_SYNC_TTL) return cached
+  if (pendingReviewsPromise) return pendingReviewsPromise
+
+  pendingReviewsPromise = call('review.pending')
+    .then(data => savePendingReviewsCache(data.orders || []))
+    .catch(error => {
+      if (cached.length) return cached
+      throw error
+    })
+    .finally(() => {
+      pendingReviewsPromise = null
+    })
+
+  return pendingReviewsPromise
+}
+
+async function deleteReview(id) {
+  const data = await call('review.delete', { id })
+  saveReviewsCache(getCachedReviews().filter(item => item.id !== id))
+  return data
+}
+
+async function fetchProductReviews(foodId) {
+  const data = await callOptionalUser('productReview.list', { foodId })
+  return data.reviews || []
+}
+
+async function deleteProductReview(orderId, foodId) {
+  return call('productReview.delete', { orderId, foodId })
+}
+
 async function deleteOrder(id) {
   const data = await call('order.delete', { id })
   saveOrdersCache(getCachedOrders().filter(item => item.id !== id))
-  saveReviewsCache(getCachedReviews().filter(item => item.id !== id))
   return data
 }
 
@@ -205,6 +268,7 @@ export default {
   getCachedOrders,
   getCachedCart,
   getCachedReviews,
+  getCachedPendingReviews,
   fetchCart,
   saveCart,
   clearCart,
@@ -216,5 +280,9 @@ export default {
   completeOrder,
   reviewOrder,
   fetchReviews,
+  fetchPendingReviews,
+  deleteReview,
+  fetchProductReviews,
+  deleteProductReview,
   deleteOrder
 }

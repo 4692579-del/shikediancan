@@ -4,6 +4,7 @@ const crypto = require('crypto')
 const db = uniCloud.database()
 const wallets = db.collection('sk_wallets')
 const recharges = db.collection('sk_wallet_recharges')
+const discountOffers = db.collection('sk_wallet_discount_offers')
 
 const PAY_EXPIRE_TIME = 15 * 60 * 1000
 const MAX_BILLS = 80
@@ -83,18 +84,25 @@ function emptyWallet(userId) {
     opened: false,
     balance: 0,
     transactions: [],
-    payPasswordSet: false
+    payPasswordSet: false,
+    everOpened: false,
+    firstOpenBonusEligible: false,
+    firstWalletPayUsed: false
   }
 }
 
 function toClientWallet(wallet = {}) {
+  const everOpened = wallet.everOpened === true || Boolean(wallet.firstOpenedAt || wallet.openedAt || wallet.closedAt)
   return {
     id: wallet._id || '',
     userId: wallet.userId || '',
     opened: wallet.opened === true,
     payPasswordSet: hasPayPassword(wallet),
     balance: roundMoney(wallet.balance || 0),
-    transactions: Array.isArray(wallet.transactions) ? wallet.transactions : []
+    transactions: Array.isArray(wallet.transactions) ? wallet.transactions : [],
+    everOpened,
+    firstOpenBonusEligible: wallet.firstOpenBonusEligible === true && wallet.firstWalletPayUsed !== true,
+    firstWalletPayUsed: wallet.firstWalletPayUsed === true
   }
 }
 
@@ -167,12 +175,16 @@ async function openWallet(userId, payPassword) {
   if (!isValidPayPassword(password)) return fail(4021, '请设置6位数字支付密码')
   const payPasswordSalt = makeSalt()
   const current = now()
+  const everOpened = wallet.everOpened === true || Boolean(wallet.firstOpenedAt || wallet.openedAt || wallet.closedAt)
   const next = await updateWallet(wallet, {
     opened: true,
     balance: wallet.opened ? roundMoney(wallet.balance || 0) : roundMoney(wallet.balance || 0),
     payPasswordSalt,
     payPasswordHash: hashPassword(password, payPasswordSalt),
     payPasswordUpdatedAt: current,
+    everOpened: true,
+    firstOpenedAt: wallet.firstOpenedAt || current,
+    firstOpenBonusEligible: everOpened ? wallet.firstOpenBonusEligible === true && wallet.firstWalletPayUsed !== true && !wallet.closedAt : true,
     openedAt: current,
     closedAt: 0,
     closeReason: null
@@ -186,11 +198,91 @@ async function closeWallet(userId, reason) {
   if (roundMoney(wallet.balance || 0) > 0) return fail(4001, '钱包还有余额，无法关闭')
   const next = await updateWallet(wallet, {
     opened: false,
+    everOpened: true,
+    firstOpenBonusEligible: false,
     transactions: [],
     closedAt: now(),
     closeReason: reason || null
   })
   return ok({ wallet: toClientWallet(next) })
+}
+
+function generateRandomDiscount(amount) {
+  const payable = Number(amount)
+  if (!Number.isFinite(payable) || payable <= 0.01) return 0
+
+  const chance = Math.random()
+  let discount
+  if (chance < 0.985) {
+    discount = 0.01 + Math.random() * 0.48
+  } else if (chance < 0.997) {
+    discount = 0.5 + Math.pow(Math.random(), 2) * 1.5
+  } else if (chance < 0.9995) {
+    discount = 2 + Math.pow(Math.random(), 2) * 8
+  } else {
+    discount = 10 + Math.pow(Math.random(), 3) * 20
+  }
+
+  const maximum = Math.min(30, payable - 0.01)
+  return roundMoney(Math.max(0.01, Math.min(discount, maximum)))
+}
+
+function normalizeScene(scene) {
+  return scene === 'membership' ? 'membership' : 'food'
+}
+
+function clientOffer(offer = {}) {
+  return {
+    id: offer._id || offer.id || '',
+    orderId: offer.orderId || '',
+    scene: offer.scene || 'food',
+    originalAmount: roundMoney(offer.originalAmount || 0),
+    discount: roundMoney(offer.discount || 0),
+    payableAmount: roundMoney(offer.payableAmount || 0),
+    firstUse: offer.firstUse === true,
+    status: offer.status || 'locked'
+  }
+}
+
+async function findLockedDiscountOffer(userId, orderId, scene) {
+  if (!orderId) return null
+  const result = await discountOffers
+    .where({ userId, orderId: String(orderId), scene: normalizeScene(scene), status: 'locked' })
+    .limit(1)
+    .get()
+  return result.data && result.data[0]
+}
+
+async function prepareDiscountOffer(userId, amount, orderId, scene) {
+  const wallet = await ensureWallet(userId)
+  if (!wallet.opened) return fail(4002, '请先开通食刻钱包')
+  const originalAmount = validAmount(amount)
+  if (!originalAmount) return fail(4050, '优惠金额计算失败')
+  if (!orderId) return fail(4051, '缺少支付订单信息')
+  const normalizedScene = normalizeScene(scene)
+  const existed = await findLockedDiscountOffer(userId, orderId, normalizedScene)
+  if (existed && Math.abs(roundMoney(existed.originalAmount || 0) - originalAmount) < 0.01) {
+    return ok({ offer: clientOffer(existed), wallet: toClientWallet(wallet) })
+  }
+
+  const canUseFirstBonus = wallet.firstOpenBonusEligible === true && wallet.firstWalletPayUsed !== true
+  const maximum = Math.max(0, originalAmount - 0.01)
+  const discount = canUseFirstBonus ? roundMoney(Math.min(8, maximum)) : generateRandomDiscount(originalAmount)
+  const current = now()
+  const offer = {
+    userId,
+    orderId: String(orderId),
+    scene: normalizedScene,
+    originalAmount,
+    discount,
+    payableAmount: roundMoney(Math.max(0.01, originalAmount - discount)),
+    firstUse: canUseFirstBonus,
+    status: 'locked',
+    createdAt: current,
+    updatedAt: current
+  }
+  const added = await discountOffers.add(offer)
+  return ok({ offer: clientOffer({ ...offer, _id: added.id || added._id }), wallet: toClientWallet(wallet) })
 }
 
 async function withdraw(userId, amount, method, payPassword) {
@@ -216,13 +308,32 @@ async function withdraw(userId, amount, method, payPassword) {
   return ok({ wallet: toClientWallet(next) })
 }
 
-async function pay(userId, amount, orderId, scene, payPassword) {
+async function pay(userId, amount, orderId, scene, payPassword, originalAmount, discountOfferId) {
   const wallet = await ensureWallet(userId)
   if (!wallet.opened) return fail(4002, '请先开通食刻钱包')
   const passwordError = verifyPayPassword(wallet, payPassword)
   if (passwordError) return passwordError
-  const money = validAmount(amount)
-  if (!money) return fail(4005, '支付金额不正确')
+  const original = validAmount(originalAmount || amount)
+  if (!original) return fail(4005, '支付金额不正确')
+  let offer = null
+  if (discountOfferId) {
+    const offerResult = await discountOffers.doc(discountOfferId).get()
+    const candidate = offerResult.data && offerResult.data[0]
+    if (candidate && candidate.userId === userId && candidate.orderId === String(orderId) && candidate.scene === normalizeScene(scene) && candidate.status === 'locked') {
+      offer = candidate
+    }
+  }
+  if (!offer) offer = await findLockedDiscountOffer(userId, orderId, scene)
+  if (!offer) {
+    const prepared = await prepareDiscountOffer(userId, original, orderId, scene)
+    if (prepared.code !== 0) return prepared
+    const offerResult = await discountOffers.doc(prepared.offer.id).get()
+    offer = offerResult.data && offerResult.data[0]
+  }
+  if (!offer) return fail(4052, '支付优惠锁定失败，请重新进入收银台')
+  if (offer.firstUse && wallet.firstWalletPayUsed === true) return fail(4053, '首次优惠已使用，无法重复享受')
+  const money = roundMoney(Math.max(0.01, original - roundMoney(offer.discount || 0)))
+  if (Math.abs(money - validAmount(amount)) >= 0.01) return fail(4054, '支付金额异常，请重新进入收银台')
   if (roundMoney(wallet.balance || 0) < money) return fail(4004, '钱包余额不足')
 
   const transaction = buildTransaction({
@@ -234,7 +345,15 @@ async function pay(userId, amount, orderId, scene, payPassword) {
   })
   const next = await updateWallet(wallet, {
     balance: roundMoney(wallet.balance - money),
-    transactions: [transaction, ...(wallet.transactions || [])].slice(0, MAX_BILLS)
+    transactions: [transaction, ...(wallet.transactions || [])].slice(0, MAX_BILLS),
+    firstWalletPayUsed: offer.firstUse ? true : wallet.firstWalletPayUsed === true,
+    firstWalletPayUsedAt: offer.firstUse ? now() : wallet.firstWalletPayUsedAt,
+    firstOpenBonusEligible: offer.firstUse ? false : wallet.firstOpenBonusEligible === true
+  })
+  await discountOffers.doc(offer._id).update({
+    status: 'used',
+    usedAt: now(),
+    updatedAt: now()
   })
   return ok({ wallet: toClientWallet(next) })
 }
@@ -400,7 +519,9 @@ exports.main = async (event = {}) => {
     case 'wallet.withdraw':
       return withdraw(userId, event.amount, event.method, event.payPassword)
     case 'wallet.pay':
-      return pay(userId, event.amount, event.orderId, event.scene, event.payPassword)
+      return pay(userId, event.amount, event.orderId, event.scene, event.payPassword, event.originalAmount, event.discountOfferId)
+    case 'wallet.discount.prepare':
+      return prepareDiscountOffer(userId, event.amount, event.orderId, event.scene)
     case 'wallet.payPassword.change':
       return changePayPassword(userId, event.oldPassword, event.newPassword)
     case 'wallet.payPassword.set':

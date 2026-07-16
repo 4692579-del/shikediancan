@@ -23,7 +23,15 @@ function ensureUserId() {
 }
 
 function emptyWallet() {
-  return { opened: false, payPasswordSet: false, balance: 0, transactions: [] }
+  return {
+    opened: false,
+    payPasswordSet: false,
+    balance: 0,
+    transactions: [],
+    everOpened: false,
+    firstOpenBonusEligible: false,
+    firstWalletPayUsed: false
+  }
 }
 
 function normalizeWallet(wallet = {}) {
@@ -32,7 +40,10 @@ function normalizeWallet(wallet = {}) {
     opened: wallet.opened === true,
     payPasswordSet: wallet.payPasswordSet === true,
     balance: Number(wallet.balance || 0),
-    transactions: Array.isArray(wallet.transactions) ? wallet.transactions : []
+    transactions: Array.isArray(wallet.transactions) ? wallet.transactions : [],
+    everOpened: wallet.everOpened === true,
+    firstOpenBonusEligible: wallet.firstOpenBonusEligible === true,
+    firstWalletPayUsed: wallet.firstWalletPayUsed === true
   }
 }
 
@@ -100,13 +111,33 @@ async function withdraw(amount, method = 'quick', payPassword = '') {
   return saveWalletCache(data.wallet)
 }
 
-async function pay(amount, orderId, payPassword = '') {
-  const data = await call('wallet.pay', { amount, orderId, scene: 'food', payPassword })
+async function prepareDiscount(amount, orderId, scene = 'food') {
+  const data = await call('wallet.discount.prepare', { amount, orderId, scene })
+  if (data.wallet) saveWalletCache(data.wallet)
+  return data.offer || null
+}
+
+async function pay(amount, orderId, payPassword = '', options = {}) {
+  const data = await call('wallet.pay', {
+    amount,
+    orderId,
+    scene: 'food',
+    payPassword,
+    originalAmount: options.originalAmount,
+    discountOfferId: options.discountOfferId
+  })
   return saveWalletCache(data.wallet)
 }
 
-async function payMembership(amount, paymentId, payPassword = '') {
-  const data = await call('wallet.pay', { amount, orderId: paymentId, scene: 'membership', payPassword })
+async function payMembership(amount, paymentId, payPassword = '', options = {}) {
+  const data = await call('wallet.pay', {
+    amount,
+    orderId: paymentId,
+    scene: 'membership',
+    payPassword,
+    originalAmount: options.originalAmount,
+    discountOfferId: options.discountOfferId
+  })
   return saveWalletCache(data.wallet)
 }
 
@@ -175,6 +206,7 @@ export default {
   getRechargeOrder,
   getCachedRechargeOrder,
   completeRechargeOrder,
+  prepareDiscount,
   pay,
   payMembership,
   deleteTransaction,

@@ -27,6 +27,26 @@
       "bsonType": "array",
       "description": "钱包账单流水"
     },
+    "everOpened": {
+      "bsonType": "bool",
+      "description": "是否曾经开通过食刻钱包"
+    },
+    "firstOpenBonusEligible": {
+      "bsonType": "bool",
+      "description": "首次开通首次支付8元优惠是否仍可用"
+    },
+    "firstWalletPayUsed": {
+      "bsonType": "bool",
+      "description": "是否已经完成过食刻钱包支付"
+    },
+    "firstWalletPayUsedAt": {
+      "bsonType": "long",
+      "description": "首次食刻钱包支付时间"
+    },
+    "firstOpenedAt": {
+      "bsonType": "long",
+      "description": "首次开通时间"
+    },
     "payPasswordSalt": {
       "bsonType": "string",
       "description": "食刻钱包支付密码盐值"

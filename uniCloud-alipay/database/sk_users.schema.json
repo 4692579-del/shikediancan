@@ -27,6 +27,10 @@
       "bsonType": "string",
       "description": "头像路径"
     },
+    "commonServices": {
+      "bsonType": "array",
+      "description": "当前用户的常用服务布局配置"
+    },
     "passwordHash": {
       "bsonType": "string",
       "description": "加盐后的密码摘要"

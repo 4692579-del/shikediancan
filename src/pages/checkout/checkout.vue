@@ -1,4 +1,4 @@
-﻿<template>
+<template>
 <view :style="globalThemeStyle" :class="`page checkout-page ${elderMode ? 'elder-mode' : ''}`">
   <view class="checkout-head" :style="`padding-top:${statusHeight}px`">
     <view class="nav-row">
@@ -87,7 +87,6 @@
 </template>
 <script>
 import adaptPage from '@/utils/page-adapter.js'
-// 纭璁㈠崟椤碉細姹囨€诲晢鍝併€佸湴鍧€銆侀厤閫併€佷紭鎯犮€侀鍏峰拰澶囨敞锛屽苟鐢熸垚寰呮敮浠樿鍗曡崏绋裤€?
 
 import store from '../../utils/store.js'
 import auth from '../../utils/auth.js'
@@ -95,6 +94,7 @@ import membership from '../../utils/membership.js'
 import orderBackend from '../../utils/order-backend.js'
 import benefitBackend from '../../utils/benefit-backend.js'
 import elderMode from '../../utils/elder-mode.js'
+import addressBackend from '../../utils/address-backend.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -128,9 +128,12 @@ const pageConfig = {
     if (!auth.guardPage('/pages/checkout/checkout')) return
     this.setData({ statusHeight: getApp().globalData.statusBarHeight })
   },
-  // 鍔犺浇璐墿杞︺€佺敤鎴烽€夊畾鍦板潃銆佷紭鎯犲埜鍜屼細鍛樻潈鐩娿€?
+
   onShow() {
     this.setData({ elderMode: elderMode.isEnabled() })
+    if (store.isLogin()) {
+      addressBackend.fetchAddresses({ force: !addressBackend.hasSynced() }).then(() => this.renderCheckout())
+    }
     this.renderCheckout()
     if (store.isLogin()) {
       benefitBackend.syncBenefits()
@@ -141,10 +144,7 @@ const pageConfig = {
   renderCheckout() {
     const cart = store.getCart().filter(item => item.checked)
     const addresses = store.getAddresses()
-    const defaultAddress = store.getDefaultAddress()
-    const selectedAddress = store.get('sk_selected_address', null)
-    const selected = selectedAddress && addresses.find(item => item.id === selectedAddress.id)
-    const address = selected || defaultAddress || null
+    const address = addressBackend.getCurrentAddress(addresses)
     const coupon = store.get('sk_selected_coupon', null)
     const membershipActive = membership.isActive()
     const membershipTier = membershipActive ? membership.getTier() : ''
@@ -162,7 +162,7 @@ const pageConfig = {
     })
     this.calculate()
   },
-  // 缁熶竴璁＄畻鍟嗗搧銆佸寘瑁呫€侀厤閫併€佹弧鍑忋€佷紭鎯犲埜銆佷細鍛樻姌鎵ｅ拰瀹炰粯閲戦銆?
+
   calculate() {
     const goodsTotal = Number(this.cart.reduce((sum, item) => sum + item.price * item.count, 0).toFixed(2))
     const couponDiscount = this.coupon && goodsTotal >= this.coupon.threshold ? this.coupon.amount : 0
@@ -364,7 +364,6 @@ export default adaptPage(pageConfig)
   padding-top:16rpx;
 }
 
-/* 璁㈠崟閫夐」鏄櫧鑹插崱鐗囦腑鐨勬棤搴曡壊琛岋紝鍘婚櫎 H5 鎸夐挳榛樿鐏板簳鍜岃竟妗嗐€?*/
 .time-panel button,
 .checkout-page .bill-row,
 .checkout-page .option-row,
@@ -375,7 +374,6 @@ export default adaptPage(pageConfig)
   box-shadow:none!important;
 }
 
-/* 鎭㈠纭璁㈠崟鐨勬í鍚戜俊鎭竷灞€锛岄伩鍏嶆枃鏈鎸夐挳榛樿瑙勫垯鎸ゆ垚绔栨帓銆?*/
 .checkout-page .order-goods{display:block!important;width:100%;box-sizing:border-box;overflow:hidden}
 .checkout-page .shop-title{display:block!important;width:100%;white-space:nowrap;word-break:keep-all;writing-mode:horizontal-tb!important}
 .checkout-page .goods-row{display:flex!important;flex-wrap:nowrap!important;width:100%;box-sizing:border-box}
@@ -458,7 +456,6 @@ export default adaptPage(pageConfig)
   line-height:1!important;
 }
 
-/* 椁愬叿鏁伴噺寮瑰眰涓殑姣忎竴椤规槸绾櫧鍒楄〃琛岋紝鍘绘帀 uni-app H5 button 榛樿娴呯伆搴曘€?*/
 .checkout-page .tableware-sheet>button,
 .checkout-page .tableware-sheet uni-button,
 .checkout-page .sheet.tableware-sheet>button{

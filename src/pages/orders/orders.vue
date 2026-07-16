@@ -592,15 +592,28 @@ uni-button.action-main.orange-btn{
   margin:14rpx 0 14rpx!important;
 }
 .orders-page .order-card .food-stack{
-  width:98rpx!important;
-  max-width:98rpx!important;
-  flex:0 0 98rpx!important;
+  width:178rpx!important;
+  max-width:178rpx!important;
+  flex:0 0 178rpx!important;
+  display:flex!important;
+  align-items:center!important;
+  overflow:visible!important;
 }
 .orders-page .order-card .mini-food{
-  width:82rpx!important;
-  height:82rpx!important;
-  flex:0 0 82rpx!important;
+  width:78rpx!important;
+  height:78rpx!important;
+  flex:0 0 78rpx!important;
   border-radius:20rpx!important;
+  margin-right:-28rpx!important;
+  overflow:hidden!important;
+  background-size:cover!important;
+  background-position:center!important;
+  box-shadow:0 0 0 4rpx #fff!important;
+}
+.orders-page .order-card .mini-food image{
+  width:100%!important;
+  height:100%!important;
+  display:block!important;
 }
 .orders-page .order-card .order-summary{
   height:84rpx!important;

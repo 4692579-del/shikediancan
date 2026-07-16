@@ -143,6 +143,7 @@ import auth from '../../utils/auth.js'
 import productBackend from '../../utils/product-backend.js'
 import i18n from '../../utils/i18n.js'
 import elderMode from '../../utils/elder-mode.js'
+import addressBackend from '../../utils/address-backend.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -168,20 +169,12 @@ const pageConfig = {
   },
   // 每次返回首页时同步当前选择地址、购物车数量和全局主题。
   onShow() {
-    const text = i18n.page('home')
-    const loggedIn = store.isLogin()
-    const addresses = loggedIn ? store.getAddresses() : []
-    const selectedAddress = loggedIn ? store.get('sk_selected_address', null) : null
-    const selected = selectedAddress && addresses.find(item => item.id === selectedAddress.id)
-    const address = selected || addresses.find(item => item.isDefault) || null
-    const summary = loggedIn ? store.cartSummary() : { count: 0 }
-    this.setData({
-      loggedIn,
-      elderMode: elderMode.isEnabled(),
-      text,
-      address: loggedIn ? (address ? store.getCompactAddress(address) : text.addressEmpty) : text.addressLogin,
-      cartCount: summary.count
-    })
+    this.renderHomeHeader()
+    if (store.isLogin()) {
+      addressBackend.fetchAddresses({ force: !addressBackend.hasSynced() }).then(() => {
+        this.renderHomeHeader()
+      })
+    }
   },
   // 根据滚动距离连续计算顶部卡片位移与透明度。
   onHomeScroll(e) {
@@ -227,6 +220,20 @@ const pageConfig = {
   closeSpecSheet() { this.setData({ showSpecSheet: false }) },
   specAdded(e) { this.setData({ cartCount: e.detail.count }) },
   bannerChange(e) { this.setData({ currentBanner: e.detail.current }) },
+  renderHomeHeader() {
+    const text = i18n.page('home')
+    const loggedIn = store.isLogin()
+    const addresses = loggedIn ? store.getAddresses() : []
+    const address = loggedIn ? addressBackend.getCurrentAddress(addresses) : null
+    const summary = loggedIn ? store.cartSummary() : { count: 0 }
+    this.setData({
+      loggedIn,
+      elderMode: elderMode.isEnabled(),
+      text,
+      address: loggedIn ? (address ? store.getCompactAddress(address) : text.addressEmpty) : text.addressLogin,
+      cartCount: summary.count
+    })
+  },
   syncProductData() {
     const cached = productBackend.getSnapshot()
     this.setData({

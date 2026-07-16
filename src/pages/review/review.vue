@@ -17,21 +17,6 @@
       </view>
     </view>
 
-    <view class="card score-card">
-      <text class="card-title">{{ labels.mealTitle }}</text>
-      <view class="score-line">
-        <text>{{ labels.overall }}</text>
-        <view class="stars">
-          <button v-for="star in 5" :key="star" hover-class="none" :class="star <= overallScore ? 'active' : ''" :data-score="star" @tap="setOverall">{{ labels.star }}</button>
-        </view>
-        <text class="score-text">{{ scoreHint }}</text>
-      </view>
-      <text class="score-slogan">{{ scoreSlogan }}</text>
-      <view class="quick-tags">
-        <button v-for="tag in recommendedTags" :key="tag" hover-class="none" :class="selectedTags.includes(tag) ? 'selected' : ''" :data-tag="tag" @tap="toggleTag">{{ tag }}</button>
-      </view>
-    </view>
-
     <view class="card goods-card">
       <text class="card-title">{{ labels.goodsTitle }}</text>
       <view class="goods-list">
@@ -106,8 +91,6 @@ const labels = {
   shopMark: '食',
   shopName: '食刻·品质厨房',
   heroDesc: '你的真实评价，会帮助我们把每一餐做得更好。',
-  mealTitle: '本次用餐体验',
-  overall: '总体评分',
   goodsTitle: '商品评价',
   goodsScore: '整单商品评分',
   serviceTitle: '服务细节',
@@ -121,15 +104,6 @@ const labels = {
   star: '★'
 }
 
-const scoreCopy = {
-  0: { hint: '未评分', slogan: '点亮星星，记录这一餐的体验', tags: [] },
-  1: { hint: '很不满意', slogan: '很抱歉这次没让你满意，欢迎写下具体问题', tags: ['口味偏差', '分量不足', '包装问题', '送达偏慢'] },
-  2: { hint: '不太满意', slogan: '这一餐还有改进空间，请告诉我们哪里需要优化', tags: ['口味一般', '包装普通', '送达较慢', '性价比一般'] },
-  3: { hint: '还可以', slogan: '感谢你的反馈，下次我们争取做得更好', tags: ['口味还行', '分量正好', '包装完整', '送达准时'] },
-  4: { hint: '满意', slogan: '看来这一餐还不错，你的好评是我们的动力', tags: ['味道不错', '分量足', '包装仔细', '送达准时', '性价比高'] },
-  5: { hint: '超赞', slogan: '太棒了！感谢认可，希望每次都能稳稳满分', tags: ['味道不错', '分量足', '包装仔细', '送达准时', '性价比高', '还会再来'] }
-}
-
 const pageConfig = {
   data: {
     labels,
@@ -137,11 +111,9 @@ const pageConfig = {
     orderId: '',
     order: null,
     items: [],
-    overallScore: 0,
     goodsScore: 0,
     deliveryScore: 0,
     packageScore: 0,
-    selectedTags: [],
     comment: '',
     anonymous: true
   },
@@ -166,31 +138,21 @@ const pageConfig = {
     this.setData({ statusHeight: getApp().globalData.statusBarHeight, orderId: order.id, order, items: order.items || [] })
   },
   back() { uni.navigateBack() },
-  setOverall(e) {
-    const score = Number(e.currentTarget.dataset.score)
-    this.setData({ overallScore: score, selectedTags: scoreCopy[score].tags.slice(0, Math.min(2, scoreCopy[score].tags.length)) })
-  },
   setGoodsScore(e) { this.setData({ goodsScore: Number(e.currentTarget.dataset.score) }) },
   setDelivery(e) { this.setData({ deliveryScore: Number(e.currentTarget.dataset.score) }) },
   setPackage(e) { this.setData({ packageScore: Number(e.currentTarget.dataset.score) }) },
-  toggleTag(e) {
-    const tag = e.currentTarget.dataset.tag
-    const selectedTags = this.selectedTags.includes(tag)
-      ? this.selectedTags.filter(item => item !== tag)
-      : [...this.selectedTags, tag]
-    this.setData({ selectedTags })
-  },
   onCommentInput(e) { this.setData({ comment: e.detail.value }) },
   toggleAnonymous(e) { this.setData({ anonymous: e.detail.value }) },
   async submitReview() {
-    if (!this.overallScore) return uni.showToast({ title: '请先选择总体评分', icon: 'none' })
     if (!this.goodsScore) return uni.showToast({ title: '请为本单商品评分', icon: 'none' })
+    const scoreList = [this.goodsScore, this.deliveryScore, this.packageScore].filter(score => score > 0)
+    const overallScore = Math.round(scoreList.reduce((sum, score) => sum + score, 0) / scoreList.length)
     const review = {
-      overallScore: this.overallScore,
+      overallScore,
       goodsScore: this.goodsScore,
-      deliveryScore: this.deliveryScore || this.overallScore,
-      packageScore: this.packageScore || this.overallScore,
-      tags: this.selectedTags,
+      deliveryScore: this.deliveryScore || overallScore,
+      packageScore: this.packageScore || overallScore,
+      tags: [],
       comment: this.comment.trim(),
       anonymous: this.anonymous,
       createdAt: new Date().toLocaleString('zh-CN', { hour12: false })

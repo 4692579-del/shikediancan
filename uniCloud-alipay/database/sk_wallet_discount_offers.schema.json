@@ -1,0 +1,85 @@
+{
+  "bsonType": "object",
+  "required": ["userId", "orderId", "scene", "originalAmount", "discount", "payableAmount", "status"],
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": {
+      "description": "食刻钱包支付优惠锁定记录ID"
+    },
+    "userId": {
+      "bsonType": "string",
+      "description": "用户ID"
+    },
+    "orderId": {
+      "bsonType": "string",
+      "description": "业务订单ID"
+    },
+    "scene": {
+      "bsonType": "string",
+      "description": "业务场景：food 或 membership"
+    },
+    "originalAmount": {
+      "bsonType": "double",
+      "description": "优惠前金额"
+    },
+    "discount": {
+      "bsonType": "double",
+      "description": "本单锁定优惠金额"
+    },
+    "payableAmount": {
+      "bsonType": "double",
+      "description": "优惠后应付金额"
+    },
+    "firstUse": {
+      "bsonType": "bool",
+      "description": "是否为首次开通首次钱包支付8元优惠"
+    },
+    "status": {
+      "bsonType": "string",
+      "description": "状态：locked、used"
+    },
+    "createdAt": {
+      "bsonType": "long",
+      "description": "创建时间"
+    },
+    "updatedAt": {
+      "bsonType": "long",
+      "description": "更新时间"
+    },
+    "usedAt": {
+      "bsonType": "long",
+      "description": "使用时间"
+    }
+  },
+  "index": [
+    {
+      "IndexName": "idx_user_order_scene_status",
+      "MgoKeySchema": {
+        "MgoIndexKeys": [
+          {
+            "Name": "userId",
+            "Direction": "1"
+          },
+          {
+            "Name": "orderId",
+            "Direction": "1"
+          },
+          {
+            "Name": "scene",
+            "Direction": "1"
+          },
+          {
+            "Name": "status",
+            "Direction": "1"
+          }
+        ],
+        "MgoIsUnique": false
+      }
+    }
+  ]
+}

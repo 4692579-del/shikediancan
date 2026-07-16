@@ -35,12 +35,10 @@
     <view class="service-card card">
       <text class="panel-title">{{text.services}}</text>
       <view class="service-grid">
-        <button hover-class="none" data-url="/pages/plus/plus" @tap="goPage"><view class="service-icon member-service"><image src="/static/assets/icons/star-filled.svg" mode="aspectFit" /></view><text>{{text.memberCenter}}</text></button>
-        <button hover-class="none" data-url="/pages/address/address" @tap="goPage"><view class="service-icon location-service"><image src="/static/assets/icons/location.svg" mode="aspectFit" /></view><text>{{text.address}}</text></button>
-        <button hover-class="none" class="service-featured" data-url="/pages/cart/cart" @tap="goPage"><view class="service-icon cart-service"><image src="/static/assets/icons/cart.svg" mode="aspectFit" /><text v-if="cartCount">{{cartCount}}</text></view><text>{{text.cart}}</text></button>
-        <button hover-class="none" data-url="/pages/wallet/wallet" @tap="goPage"><view class="service-icon wallet-service"><image src="/static/assets/icons/wallet.svg" mode="aspectFit" /></view><text>{{text.wallet}}</text></button>
-        <button hover-class="none" @tap="contact"><view class="service-icon support-service"><image src="/static/assets/icons/service.svg" mode="aspectFit" /></view><text>{{text.service}}</text></button>
-        <button hover-class="none" data-url="/pages/settings/settings" @tap="goPage"><view class="service-icon notice-service"><image src="/static/assets/icons/bell.svg" mode="aspectFit" /></view><text>{{text.message}}</text></button>
+        <button v-for="item in commonServices" :key="item.key" hover-class="none" :class="item.featured ? 'service-featured' : ''" :data-url="item.url" :data-action="item.action" @tap="goService">
+          <view :class="`service-icon ${item.iconClass}`"><image :src="item.icon" mode="aspectFit" /><text v-if="item.badge === 'cartCount' && cartCount">{{cartCount}}</text></view>
+          <text>{{item.label}}</text>
+        </button>
       </view>
     </view>
   </view>
@@ -61,6 +59,7 @@ import favoriteBackend from '../../utils/favorite-backend.js'
 import orderBackend from '../../utils/order-backend.js'
 import benefitBackend from '../../utils/benefit-backend.js'
 import i18n from '../../utils/i18n.js'
+import commonServices from '../../utils/common-services.js'
 const pageConfig = {
   data: {
     statusHeight: 20,
@@ -77,7 +76,8 @@ const pageConfig = {
     membershipTier: '',
     membershipExpireText: '',
     profileTheme: profileTheme.getTheme('black'),
-    text: i18n.page('profile')
+    text: i18n.page('profile'),
+    commonServices: commonServices.getVisibleServices()
   },
   onLoad() { this.setData({ statusHeight: getApp().globalData.statusBarHeight }) },
   // 先用本地缓存立即渲染“我的”页，再在后台刷新后端数据，避免切换进来时长时间空白。
@@ -88,10 +88,12 @@ const pageConfig = {
     Promise.allSettled([
       favoriteBackend.fetchFavorites(),
       orderBackend.fetchOrders(),
+      orderBackend.fetchPendingReviews(),
       benefitBackend.syncBenefits(),
-      wallet.fetchWallet({ force: true })
+      wallet.fetchWallet({ force: true }),
+      commonServices.fetchConfig()
     ]).then(results => {
-      const labels = ['fetch favorites failed', 'fetch orders failed', 'sync benefits failed', 'sync wallet failed']
+      const labels = ['fetch favorites failed', 'fetch orders failed', 'fetch pending reviews failed', 'sync benefits failed', 'sync wallet failed', 'fetch common services failed']
       results.forEach((item, index) => {
         if (item.status === 'rejected') console.error(labels[index], item.reason)
       })
@@ -102,6 +104,7 @@ const pageConfig = {
   renderProfile() {
     const user = store.get('sk_user', null)
     const orders = user ? store.get('sk_orders', []) : []
+    const pendingReviews = user ? store.get('sk_pending_reviews', []) : []
     let themeId = user ? store.get('sk_profile_theme', 'black') : 'black'
     let theme = profileTheme.getTheme(themeId)
     const membershipActive = user ? membership.isActive() : false
@@ -123,12 +126,13 @@ const pageConfig = {
       activeOrderCount: orders.filter(item => ['making', 'delivery'].includes(item.status)).length,
       doneCount: orders.filter(item => item.status === 'done').length,
       cancelledCount: orders.filter(item => item.status === 'cancelled').length,
-      reviewedCount: orders.filter(item => item.status === 'done' && item.reviewed === true).length,
+      reviewedCount: pendingReviews.length || orders.filter(item => item.status === 'done' && item.reviewed !== true).length,
       membershipActive,
       membershipTier: membershipActive ? membership.getTier() : '',
       membershipExpireText: memberRecord ? membership.formatDate(memberRecord.expireAt) : '',
       profileTheme: theme,
-      text: i18n.page('profile')
+      text: i18n.page('profile'),
+      commonServices: commonServices.getVisibleServices()
     })
   },
   login() { auth.requireLogin('/pages/profile/profile') },
@@ -154,6 +158,14 @@ const pageConfig = {
   goPage(e) {
     const url = e.currentTarget.dataset.url
     if (auth.requireLogin(url)) uni.navigateTo({ url })
+  },
+  goService(e) {
+    const action = e.currentTarget.dataset.action
+    if (action === 'contact') {
+      this.contact()
+      return
+    }
+    this.goPage(e)
   },
   contact() { uni.showModal({ title: '联系食刻客服', content: '客服热线：400-888-2026\n服务时间：09:00—22:00', confirmText: '拨打电话', success: res => { if (res.confirm) uni.makePhoneCall({ phoneNumber: '4008882026' }) } }) }
 }
