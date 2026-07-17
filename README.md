@@ -21,6 +21,8 @@
 - AI Code Review 报告：[AI_CODE_REVIEW.md](./AI_CODE_REVIEW.md)
 - 个人总结报告：[PERSONAL_SUMMARY.md](./PERSONAL_SUMMARY.md)
 - 数据库、接口、AI Code Review 截图包：[截图包](./docs/screenshots/数据库、接口、AICodeReview截图包.zip)
+- 测试与构建验证：[TESTING.md](./TESTING.md)
+- CI 自动构建：`.github/workflows/ci.yml`
 
 ## 主要功能
 
