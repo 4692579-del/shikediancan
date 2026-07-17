@@ -10,6 +10,8 @@
 
 [https://env-00jy6k9lf709-static.normal.cloudstatic.cn/index.html#/](https://env-00jy6k9lf709-static.normal.cloudstatic.cn/index.html#/)
 
+项目演示录屏见：[DEMO.md](./DEMO.md)。
+
 ## 主要功能
 
 - 首页：门店信息、推荐商品、分类入口、搜索入口。
