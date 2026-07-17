@@ -12,6 +12,16 @@
 
 项目演示录屏见：[DEMO.md](./DEMO.md)。
 
+## 课程提交材料
+
+- 线上 Demo：[访问地址](https://env-00jy6k9lf709-static.normal.cloudstatic.cn/index.html#/)
+- 项目演示录屏：[DEMO.md](./DEMO.md)
+- API 文档：[API.md](./API.md)
+- Prompt 日志：[prompt_log.md](./prompt_log.md)
+- AI Code Review 报告：[AI_CODE_REVIEW.md](./AI_CODE_REVIEW.md)
+- 个人总结报告：[PERSONAL_SUMMARY.md](./PERSONAL_SUMMARY.md)
+- 数据库、接口、AI Code Review 截图包：[截图包](./docs/screenshots/数据库、接口、AICodeReview截图包.zip)
+
 ## 主要功能
 
 - 首页：门店信息、推荐商品、分类入口、搜索入口。
