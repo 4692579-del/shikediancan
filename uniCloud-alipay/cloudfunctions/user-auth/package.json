@@ -1,6 +1,11 @@
-{
-  "name": "user-auth",
-  "version": "1.0.0",
-  "description": "食刻点餐用户注册登录云函数",
-  "main": "index.js"
+﻿{
+    "name":  "user-auth",
+    "version":  "1.0.0",
+    "main":  "index.js",
+    "permissions":  {
+                        "client":  true
+                    },
+    "dependencies":  {
+
+                     }
 }
