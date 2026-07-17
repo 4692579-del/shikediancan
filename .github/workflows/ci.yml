@@ -26,5 +26,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Prepare cloud config
+        run: cp src/utils/cloud-config.example.js src/utils/cloud-config.js
+
       - name: Build H5
         run: pnpm run build:h5

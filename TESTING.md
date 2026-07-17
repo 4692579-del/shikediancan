@@ -31,7 +31,8 @@ pnpm run build:h5
 1. 拉取代码
 2. 安装 Node.js 22 和 pnpm
 3. 使用 `pnpm install --frozen-lockfile` 安装依赖
-4. 执行 `pnpm run build:h5` 验证项目是否可以正常构建
+4. 复制 `src/utils/cloud-config.example.js` 作为 CI 构建用的示例云配置
+5. 执行 `pnpm run build:h5` 验证项目是否可以正常构建
 
 该流程用于证明项目具备基础工程化验证能力，可作为课程加分项中的 CI 构建检查材料。
 
