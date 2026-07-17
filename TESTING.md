@@ -29,7 +29,7 @@ pnpm run build:h5
 当代码推送到 `master` 分支，或向 `master` 发起 Pull Request 时，CI 会自动执行：
 
 1. 拉取代码
-2. 安装 pnpm 和 Node.js 20
+2. 安装 Node.js 22 和 pnpm
 3. 使用 `pnpm install --frozen-lockfile` 安装依赖
 4. 执行 `pnpm run build:h5` 验证项目是否可以正常构建
 
