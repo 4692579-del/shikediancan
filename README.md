@@ -132,132 +132,18 @@ pnpm run build:h5
 
 ## API 概览
 
-本项目后端使用 uniCloud 云函数。前端调用方式主要为：
+本项目后端基于 uniCloud 云函数实现，通过 `cloud.callFunction` 调用，并使用 `action` 字段区分具体接口能力。完整接口说明、主要参数和调用示例见：[API.md](./API.md)。
 
-完整接口文档见：[API.md](./API.md)。
-
-```js
-cloud.callFunction({
-  name: '云函数名称',
-  data: {
-    action: '接口动作',
-    ...payload
-  }
-})
-```
-
-### user-auth
-
-用户注册和登录。
-
-| Action | 说明 |
+| 云函数 | 主要职责 |
 | --- | --- |
-| `register` | 用户注册 |
-| `login` | 用户登录 |
-
-### user-profile
-
-用户资料和个人中心常用服务。
-
-| Action | 说明 |
-| --- | --- |
-| `get` | 获取用户资料 |
-| `updateAvatar` | 更新头像 |
-| `updateNickname` | 更新昵称 |
-| `getCommonServices` | 获取常用服务配置 |
-| `saveCommonServices` | 保存常用服务配置 |
-
-### product-service
-
-商品、分类和店铺数据。
-
-| Action | 说明 |
-| --- | --- |
-| `product.sync` | 同步商品、分类、店铺数据 |
-| `product.list` | 获取商品列表 |
-| `product.detail` | 获取商品详情 |
-| `product.search` | 搜索商品 |
-
-### order-service
-
-购物车、订单和评价。
-
-| Action | 说明 |
-| --- | --- |
-| `cart.list` | 获取购物车 |
-| `cart.set` | 保存购物车 |
-| `cart.clear` | 清空购物车 |
-| `order.create` | 创建订单 |
-| `order.list` | 获取订单列表 |
-| `order.get` | 获取订单详情 |
-| `order.pay` | 支付订单 |
-| `order.cancel` | 取消订单 |
-| `order.complete` | 完成订单 |
-| `order.review` | 提交订单评价 |
-| `order.delete` | 删除订单 |
-| `review.list` | 获取我的评价 |
-| `review.pending` | 获取待评价订单 |
-| `review.delete` | 删除我的评价 |
-| `productReview.list` | 获取商品评价列表 |
-| `productReview.delete` | 删除商品评价 |
-
-### address-service
-
-收货地址管理。
-
-| Action | 说明 |
-| --- | --- |
-| `list` | 获取地址列表 |
-| `save` | 新增或编辑地址 |
-| `remove` | 删除地址 |
-
-### favorite-service
-
-商品收藏。
-
-| Action | 说明 |
-| --- | --- |
-| `favorite.list` | 获取收藏列表 |
-| `favorite.add` | 添加收藏 |
-| `favorite.remove` | 取消收藏 |
-| `favorite.toggle` | 切换收藏状态 |
-
-### benefit-service
-
-优惠券、会员和会员订单。
-
-| Action | 说明 |
-| --- | --- |
-| `sync` / `benefit.sync` | 同步会员与优惠数据 |
-| `coupon.list` | 获取优惠券列表 |
-| `coupon.use` | 使用优惠券 |
-| `membership.createOrder` | 创建会员订单 |
-| `membership.getOrder` | 获取会员订单详情 |
-| `membership.listOrders` | 获取会员订单列表 |
-| `membership.payOrder` | 支付会员订单 |
-| `membership.cancelOrder` | 取消会员订单 |
-| `membership.deleteOrder` | 删除会员订单 |
-| `membership.reset` | 重置会员状态 |
-
-### wallet-service
-
-食刻钱包、充值、提现、钱包支付和密码管理。
-
-| Action | 说明 |
-| --- | --- |
-| `wallet.get` | 获取钱包信息 |
-| `wallet.open` | 开通钱包 |
-| `wallet.close` | 关闭钱包 |
-| `wallet.withdraw` | 模拟提现 |
-| `wallet.pay` | 钱包支付 |
-| `wallet.discount.prepare` | 准备钱包优惠 |
-| `wallet.payPassword.change` | 修改支付密码 |
-| `wallet.payPassword.set` | 设置支付密码 |
-| `wallet.transaction.delete` | 删除钱包账单 |
-| `account.loginPassword.change` | 修改登录密码 |
-| `recharge.create` | 创建充值订单 |
-| `recharge.get` | 获取充值订单 |
-| `recharge.complete` | 完成模拟充值 |
+| `user-auth` | 用户注册、登录 |
+| `user-profile` | 用户资料、头像、昵称、常用服务 |
+| `product-service` | 商品、分类、店铺数据 |
+| `order-service` | 购物车、订单、支付状态、评价 |
+| `address-service` | 收货地址管理 |
+| `favorite-service` | 商品收藏 |
+| `benefit-service` | 优惠券、会员、会员订单 |
+| `wallet-service` | 食刻钱包、充值、提现、钱包支付、密码管理 |
 
 ## 部署说明
 
